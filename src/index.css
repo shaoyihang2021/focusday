@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (toggled on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-canvas: var(--fd-canvas);
+  --color-card: var(--fd-card);
+  --color-solid: var(--fd-solid);
+  --color-line: var(--fd-line);
+  --color-ink: var(--fd-ink);
+  --color-muted: var(--fd-muted);
+  --color-brand: var(--fd-brand);
+  --color-brand-deep: var(--fd-brand-deep);
+  --color-brand-soft: var(--fd-brand-soft);
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+}
+
+:root {
+  --fd-canvas: #eef1f7;
+  --fd-card: rgba(255, 255, 255, 0.74);
+  --fd-solid: #ffffff;
+  --fd-line: rgba(15, 23, 42, 0.09);
+  --fd-ink: #0f172a;
+  --fd-muted: #64748b;
+  --fd-brand: #f74a2c;
+  --fd-brand-deep: #d8340f;
+  --fd-brand-soft: rgba(247, 74, 44, 0.12);
+  color-scheme: light;
+}
+
+.dark {
+  --fd-canvas: #0b0f17;
+  --fd-card: rgba(24, 30, 41, 0.72);
+  --fd-solid: #161c26;
+  --fd-line: rgba(255, 255, 255, 0.09);
+  --fd-ink: #eaf0f8;
+  --fd-muted: #93a0b4;
+  --fd-brand: #ff6a4d;
+  --fd-brand-deep: #ff8566;
+  --fd-brand-soft: rgba(255, 106, 77, 0.16);
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  color: var(--fd-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--fd-canvas);
+  background-image:
+    radial-gradient(900px 520px at 8% -10%, var(--fd-brand-soft), transparent 60%),
+    radial-gradient(760px 460px at 106% 8%, rgba(56, 189, 248, 0.16), transparent 62%);
+  background-attachment: fixed;
+}
+
+/* The desktop widget window must be able to render a fully transparent surface. */
+body.fd-widget {
+  background: transparent;
+  background-image: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fd-muted) 34%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fd-muted) 60%, transparent);
+  background-clip: content-box;
+}
+
+@utility glass {
+  background-color: var(--fd-card);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--fd-line);
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+
+input,
+select,
+button,
+textarea {
+  font-family: inherit;
+}
+
+@keyframes fd-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fd-pop {
+  animation: fd-pop 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes fd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.fd-pulse {
+  animation: fd-pulse 1.8s ease-in-out infinite;
+}
+
+/* Range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fd-muted) 28%, transparent);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--fd-brand);
+  border: 3px solid var(--fd-solid);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}

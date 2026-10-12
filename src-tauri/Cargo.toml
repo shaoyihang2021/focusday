@@ -1,0 +1,30 @@
+[package]
+name = "focusday"
+version = "0.1.0"
+description = "FocusDay · 番茄工作法 + 待办清单 + 倒数日"
+authors = ["shaoyihang2021"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# The desktop app is driven from the library target so the same code can power
+# the mobile entry point later on.
+name = "focusday_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-store = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -12,6 +12,7 @@ import {
   Rocket,
   RotateCcw,
   Upload,
+  Waves,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
@@ -25,7 +26,7 @@ import {
 import { exportBackup, importBackup } from "../lib/backup";
 import { isTauri } from "../lib/env";
 import { todayISO } from "../lib/date";
-import type { Accent, ThemeMode, WidgetSize } from "../types";
+import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
@@ -71,6 +72,20 @@ const ACCENT_SWATCH: { value: Accent; label: string; color: string }[] = [
   { value: "amber", label: "琥珀黄", color: "#b7791f" },
 ];
 
+const SKINS: { value: WidgetSkin; label: string }[] = [
+  { value: "glass", label: "玻璃" },
+  { value: "solid", label: "纯色" },
+  { value: "outline", label: "描边" },
+  { value: "ghost", label: "幽灵" },
+];
+
+const NOISES: { value: NoiseType; label: string }[] = [
+  { value: "off", label: "关闭" },
+  { value: "white", label: "白噪音" },
+  { value: "pink", label: "粉红噪音" },
+  { value: "brown", label: "棕噪音" },
+];
+
 const HOTKEYS: { value: string; label: string }[] = [
   { value: "", label: "关闭快捷键" },
   { value: "CommandOrControl+Shift+F", label: "Ctrl + Shift + F" },
@@ -113,8 +128,8 @@ export default function SettingsView() {
 
   const handleExport = async () => {
     try {
-      const { todos, countdowns, settings: s, timer } = useAppStore.getState();
-      const path = await exportBackup({ todos, countdowns, settings: s, timer });
+      const { todos, tags, countdowns, settings: s, timer, focusByDay } = useAppStore.getState();
+      const path = await exportBackup({ todos, tags, countdowns, settings: s, timer, focusByDay });
       setStatus(path ? `备份已导出到 ${path}` : "已取消导出");
     } catch (err) {
       setStatus(`导出失败：${err instanceof Error ? err.message : String(err)}`);
@@ -202,6 +217,23 @@ export default function SettingsView() {
           label="托盘显示倒计时"
           hint="鼠标悬停托盘图标即可看到剩余时间与今日番茄数"
         />
+      </Section>
+
+      <Section icon={<Waves size={16} />} title="白噪音">
+        <Row label="声音类型" hint="计时开始时自动播放，暂停或结束时自动停止">
+          <Segmented options={NOISES} value={settings.noise} onChange={(v) => updateSettings({ noise: v })} />
+        </Row>
+        <Row label="音量" hint={`当前 ${Math.round(settings.noiseVolume * 100)}%`}>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(settings.noiseVolume * 100)}
+            onChange={(e) => updateSettings({ noiseVolume: Number(e.target.value) / 100 })}
+            className="w-40"
+          />
+        </Row>
       </Section>
 
       <Section icon={<Keyboard size={16} />} title="全局快捷键">
@@ -321,6 +353,13 @@ export default function SettingsView() {
             }}
           />
         </Row>
+        <Row label="小组件皮肤" hint="选择小组件的外观风格">
+          <Segmented
+            options={SKINS}
+            value={settings.widgetSkin}
+            onChange={(skin) => updateSettings({ widgetSkin: skin })}
+          />
+        </Row>
         <Toggle
           checked={settings.widgetLocked}
           onChange={(v) => updateSettings({ widgetLocked: v })}
@@ -381,7 +420,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.3.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
+        FocusDay v0.4.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
       </p>
     </div>
   );

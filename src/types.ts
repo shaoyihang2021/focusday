@@ -8,11 +8,33 @@ export type WidgetSize = "small" | "medium" | "large";
 /** Accent colour scheme applied across the whole UI. */
 export type Accent = "tomato" | "ocean" | "violet" | "forest" | "amber";
 
+/** Appearance variants for the detached desktop widget. */
+export type WidgetSkin = "glass" | "solid" | "outline" | "ghost";
+
+/** Ambient noise played while the timer runs. */
+export type NoiseType = "off" | "white" | "pink" | "brown";
+
 /** Logical (DPI independent) screen position. */
 export interface Point {
   x: number;
   y: number;
 }
+
+/** A user defined label that can be attached to todos. */
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/** Focused time recorded for a single calendar day. */
+export interface DayStat {
+  minutes: number;
+  count: number;
+}
+
+/** `YYYY-MM-DD` -> focused time for that day. */
+export type FocusByDay = Record<string, DayStat>;
 
 export interface Todo {
   id: string;
@@ -24,6 +46,8 @@ export interface Todo {
   completed: number;
   /** 0 = low, 1 = normal, 2 = high */
   priority: 0 | 1 | 2;
+  /** Ids of the tags attached to this task. */
+  tags: string[];
   createdAt: number;
   doneAt?: number;
 }
@@ -55,10 +79,16 @@ export interface Settings {
   /** Widget panel opacity, 0.4 – 1. */
   widgetOpacity: number;
   widgetSize: WidgetSize;
+  /** Widget visual style. */
+  widgetSkin: WidgetSkin;
   /** Lock the widget so it can no longer be dragged by accident. */
   widgetLocked: boolean;
   /** Last known widget position, restored on next launch. */
   widgetPos: Point | null;
+  /** Ambient noise played while the timer runs. */
+  noise: NoiseType;
+  /** Noise volume, 0 – 1. */
+  noiseVolume: number;
   /** Show the live countdown in the tray tooltip. */
   trayCountdown: boolean;
   /**
@@ -84,17 +114,16 @@ export interface TimerState {
   /** Finished work rounds inside the current cycle (0..longEvery). */
   round: number;
   activeTodoId: string | null;
-  /** Pomodoros finished today. */
-  today: number;
-  /** `YYYY-MM-DD` the `today` counter belongs to. */
-  todayKey: string;
 }
 
 export interface AppState {
   todos: Todo[];
+  tags: Tag[];
   countdowns: Countdown[];
   settings: Settings;
   timer: TimerState;
+  /** Focus history used by the stats view. */
+  focusByDay: FocusByDay;
 }
 
-export type View = "pomodoro" | "todos" | "countdowns" | "settings";
+export type View = "pomodoro" | "todos" | "countdowns" | "stats" | "settings";

@@ -1,5 +1,6 @@
 import { useAppStore } from "../store/useAppStore";
 import { computeRemaining, formatClock, modeLabel } from "./timer";
+import { todayStat } from "./stats";
 import { updateTrayTooltip } from "./widget";
 
 const IDLE_TOOLTIP = "FocusDay · 番茄待办与倒数日";
@@ -16,12 +17,12 @@ export function startTrayTooltipSync(): () => void {
   let last = "";
 
   const tick = () => {
-    const { timer, settings } = useAppStore.getState();
+    const { timer, settings, focusByDay } = useAppStore.getState();
     const text =
       settings.trayCountdown && timer.running
         ? `FocusDay · ${modeLabel(timer.mode)} ${formatClock(
             computeRemaining(timer, Date.now()),
-          )} · 今日 ${timer.today} 🍅`
+          )} · 今日 ${todayStat(focusByDay).count} 🍅`
         : IDLE_TOOLTIP;
 
     if (text === last) return;

@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import { Coffee, Lock, LockOpen, Minus, Pause, Play, SquareArrowOutUpRight, Timer } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
+import type { WidgetSkin } from "../types";
 import { useNow } from "../hooks/useNow";
 import { computeRemaining, durationFor, formatClock } from "../lib/timer";
 import { countdownInfo } from "../lib/date";
+import { todayStat } from "../lib/stats";
 import {
   applyWidgetWindowSettings,
   focusMainWindow,
@@ -22,6 +24,7 @@ export default function WidgetApp() {
   const countdowns = useAppStore((s) => s.countdowns);
   const toggleRun = useAppStore((s) => s.toggleRun);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const todayCount = useAppStore((s) => todayStat(s.focusByDay).count);
 
   const now = useNow(500);
   const remaining = computeRemaining(timer, now);
@@ -77,6 +80,13 @@ export default function WidgetApp() {
     ? {}
     : { "data-tauri-drag-region": "true" };
 
+  const skinClass: Record<WidgetSkin, string> = {
+    glass: "fd-skin-glass shadow-xl shadow-black/20",
+    solid: "fd-skin-solid shadow-xl shadow-black/25",
+    outline: "fd-skin-outline shadow-lg shadow-black/10",
+    ghost: "fd-skin-ghost",
+  };
+
   const nextTodo = todos.find((t) => !t.done) ?? null;
 
   const pinned = countdowns.filter((c) => c.pinned);
@@ -91,7 +101,10 @@ export default function WidgetApp() {
   return (
     <div className="h-full w-full p-2">
       <div
-        className="glass flex h-full w-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/20"
+        className={cn(
+          "flex h-full w-full flex-col overflow-hidden rounded-2xl",
+          skinClass[settings.widgetSkin],
+        )}
         style={{ opacity: settings.widgetOpacity }}
       >
         {/* drag handle — dragging is disabled while the widget is locked */}
@@ -161,7 +174,7 @@ export default function WidgetApp() {
               <span className={cn("text-[10px]", timer.running ? "fd-pulse text-brand" : "text-muted")}>
                 {timer.running ? "进行中" : "已暂停"}
               </span>
-              <span className="ml-auto text-[10px] text-muted">今日 {timer.today}🍅</span>
+              <span className="ml-auto text-[10px] text-muted">今日 {todayCount}🍅</span>
             </div>
 
             {nearestInfo && nearest ? (

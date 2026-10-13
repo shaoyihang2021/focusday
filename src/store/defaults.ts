@@ -1,13 +1,16 @@
-import type { Accent, AppState, Point, Settings, TimerState, WidgetSize } from "../types";
+import type {
+  Accent,
+  AppState,
+  DayStat,
+  FocusByDay,
+  Point,
+  Settings,
+  Tag,
+  TimerState,
+  WidgetSize,
+} from "../types";
 
 export const THEME_STORAGE_KEY = "fd-theme";
-
-export const todayKey = (d: Date = new Date()): string => {
-  const y = d.getFullYear();
-  const m = `${d.getMonth() + 1}`.padStart(2, "0");
-  const day = `${d.getDate()}`.padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
 
 export const defaultSettings: Settings = {
   workMin: 25,
@@ -20,8 +23,11 @@ export const defaultSettings: Settings = {
   widgetAlwaysOnTop: true,
   widgetOpacity: 0.92,
   widgetSize: "medium",
+  widgetSkin: "glass",
   widgetLocked: false,
   widgetPos: null,
+  noise: "off",
+  noiseVolume: 0.3,
   trayCountdown: true,
   hotkey: "",
   autoLaunch: false,
@@ -31,6 +37,28 @@ export const defaultSettings: Settings = {
 };
 
 export const ACCENTS: Accent[] = ["tomato", "ocean", "violet", "forest", "amber"];
+
+export const WIDGET_SKINS = ["glass", "solid", "outline", "ghost"] as const;
+export const NOISE_TYPES = ["off", "white", "pink", "brown"] as const;
+
+/** Palette offered when creating a tag, cycled by index. */
+export const TAG_COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#14b8a6",
+  "#ef4444",
+  "#6366f1",
+];
+
+/** Tags available on a fresh install so the feature is immediately usable. */
+export const defaultTags: Tag[] = [
+  { id: "tag-work", name: "工作", color: "#3b82f6" },
+  { id: "tag-study", name: "学习", color: "#8b5cf6" },
+  { id: "tag-life", name: "生活", color: "#10b981" },
+];
 
 /** Multipliers applied to the widget window's base size (324 × 216). */
 export const widgetScale: Record<WidgetSize, number> = {
@@ -46,15 +74,15 @@ export const defaultTimer: TimerState = {
   remaining: defaultSettings.workMin * 60,
   round: 0,
   activeTodoId: null,
-  today: 0,
-  todayKey: todayKey(),
 };
 
 export const defaultState: AppState = {
   todos: [],
+  tags: defaultTags,
   countdowns: [],
   settings: defaultSettings,
   timer: defaultTimer,
+  focusByDay: {},
 };
 
 const asNumber = (value: unknown, fallback: number): number =>
@@ -71,6 +99,31 @@ const asPoint = (value: unknown): Point | null => {
     : null;
 };
 
+const isTag = (value: unknown): value is Tag => {
+  if (!value || typeof value !== "object") return false;
+  const t = value as Partial<Tag>;
+  return (
+    typeof t.id === "string" &&
+    t.id !== "" &&
+    typeof t.name === "string" &&
+    typeof t.color === "string"
+  );
+};
+
+/** Keeps only well-formed `YYYY-MM-DD` -> { minutes, count } entries. */
+function sanitizeFocusByDay(value: unknown): FocusByDay {
+  if (!value || typeof value !== "object") return {};
+  const out: FocusByDay = {};
+  for (const [date, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const stat = (raw ?? {}) as Partial<DayStat>;
+    const minutes = asNumber(stat.minutes, 0);
+    const count = asNumber(stat.count, 0);
+    if (minutes > 0 || count > 0) out[date] = { minutes, count };
+  }
+  return out;
+}
+
 /**
  * Merges whatever we read from disk with the current defaults. This keeps old
  * data files valid after new fields are introduced.
@@ -80,8 +133,31 @@ export function sanitizeState(input: unknown): AppState {
   const settings = (raw.settings ?? {}) as Partial<Settings>;
   const timer = (raw.timer ?? {}) as Partial<TimerState>;
 
+  const tags = Array.isArray(raw.tags) ? raw.tags.filter(isTag) : defaultTags;
+  const knownTagIds = new Set(tags.map((t) => t.id));
+
+  const todos = (Array.isArray(raw.todos) ? raw.todos : []).map((todo) => ({
+    ...todo,
+    // Drop references to tags the user deleted.
+    tags: Array.isArray(todo.tags) ? todo.tags.filter((id) => knownTagIds.has(id)) : [],
+  }));
+
+  const focusByDay = sanitizeFocusByDay(raw.focusByDay);
+
+  // v0.3 and earlier only tracked a per-day counter in the timer state; fold it
+  // into the new history so the numbers stay consistent after upgrading.
+  const legacyToday = asNumber((timer as { today?: unknown }).today, 0);
+  const legacyKey = (timer as { todayKey?: unknown }).todayKey;
+  if (legacyToday > 0 && typeof legacyKey === "string" && !focusByDay[legacyKey]) {
+    focusByDay[legacyKey] = {
+      minutes: legacyToday * asNumber(settings.workMin, defaultSettings.workMin),
+      count: legacyToday,
+    };
+  }
+
   const merged: AppState = {
-    todos: Array.isArray(raw.todos) ? raw.todos : [],
+    todos,
+    tags,
     countdowns: Array.isArray(raw.countdowns) ? raw.countdowns : [],
     settings: {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),
@@ -99,12 +175,19 @@ export function sanitizeState(input: unknown): AppState {
         settings.widgetSize === "large"
           ? settings.widgetSize
           : defaultSettings.widgetSize,
-      autoLaunch: asBool(settings.autoLaunch, defaultSettings.autoLaunch),
-      closeToTray: asBool(settings.closeToTray, defaultSettings.closeToTray),
+      widgetSkin: WIDGET_SKINS.includes(settings.widgetSkin as never)
+        ? (settings.widgetSkin as Settings["widgetSkin"])
+        : defaultSettings.widgetSkin,
       widgetLocked: asBool(settings.widgetLocked, defaultSettings.widgetLocked),
       widgetPos: asPoint(settings.widgetPos),
+      noise: NOISE_TYPES.includes(settings.noise as never)
+        ? (settings.noise as Settings["noise"])
+        : defaultSettings.noise,
+      noiseVolume: Math.min(1, Math.max(0, asNumber(settings.noiseVolume, defaultSettings.noiseVolume))),
       trayCountdown: asBool(settings.trayCountdown, defaultSettings.trayCountdown),
       hotkey: typeof settings.hotkey === "string" ? settings.hotkey : defaultSettings.hotkey,
+      autoLaunch: asBool(settings.autoLaunch, defaultSettings.autoLaunch),
+      closeToTray: asBool(settings.closeToTray, defaultSettings.closeToTray),
       accent: ACCENTS.includes(settings.accent as Accent)
         ? (settings.accent as Accent)
         : defaultSettings.accent,
@@ -123,16 +206,10 @@ export function sanitizeState(input: unknown): AppState {
       remaining: asNumber(timer.remaining, defaultTimer.remaining),
       round: asNumber(timer.round, 0),
       activeTodoId: typeof timer.activeTodoId === "string" ? timer.activeTodoId : null,
-      today: asNumber(timer.today, 0),
-      todayKey: typeof timer.todayKey === "string" ? timer.todayKey : todayKey(),
     },
+    focusByDay,
   };
 
-  // A new day resets the daily counter.
-  if (merged.timer.todayKey !== todayKey()) {
-    merged.timer.today = 0;
-    merged.timer.todayKey = todayKey();
-  }
   if (!merged.timer.running) merged.timer.endAt = null;
 
   return merged;

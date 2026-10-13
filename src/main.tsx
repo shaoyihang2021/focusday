@@ -8,6 +8,7 @@ import { ensureNotificationPermission } from "./lib/notify";
 import { watchSystemTheme } from "./lib/theme";
 import { applyWidgetWindowSettings, registerCloseBehaviour, setAutoLaunch, setGlobalShortcut } from "./lib/widget";
 import { startTrayTooltipSync } from "./lib/trayTooltip";
+import { syncNoise } from "./lib/noise";
 import { isWidgetWindow } from "./lib/env";
 import "./index.css";
 
@@ -33,6 +34,15 @@ async function bootstrap(): Promise<void> {
     void registerCloseBehaviour(() => useAppStore.getState().settings.closeToTray);
     void setGlobalShortcut(settings.hotkey);
     startTrayTooltipSync();
+
+    // Ambient noise follows the timer. Driving it from a store subscription
+    // means a start triggered in the widget window also starts the audio here.
+    const syncFromStore = () => {
+      const { timer: t, settings: s } = useAppStore.getState();
+      syncNoise(t.running, s.noise, s.noiseVolume);
+    };
+    syncFromStore();
+    useAppStore.subscribe(syncFromStore);
   }
 
   const container = document.getElementById("root");

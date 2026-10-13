@@ -1,13 +1,15 @@
-import { CalendarDays, ListTodo, Settings as SettingsIcon, Timer } from "lucide-react";
+import { CalendarDays, ChartColumn, ListTodo, Settings as SettingsIcon, Timer } from "lucide-react";
 import type { View } from "../types";
 import { useAppStore } from "../store/useAppStore";
 import { countdownInfo } from "../lib/date";
+import { todayStat } from "../lib/stats";
 import { cn } from "../lib/cn";
 
 const NAV: { value: View; label: string; Icon: typeof Timer }[] = [
   { value: "pomodoro", label: "番茄钟", Icon: Timer },
   { value: "todos", label: "待办清单", Icon: ListTodo },
   { value: "countdowns", label: "倒数日", Icon: CalendarDays },
+  { value: "stats", label: "统计", Icon: ChartColumn },
   { value: "settings", label: "设置", Icon: SettingsIcon },
 ];
 
@@ -17,7 +19,7 @@ interface Props {
 }
 
 export function Sidebar({ view, onChange }: Props) {
-  const today = useAppStore((s) => s.timer.today);
+  const today = useAppStore((s) => todayStat(s.focusByDay).count);
   const openTodos = useAppStore((s) => s.todos.filter((t) => !t.done).length);
   const upcoming = useAppStore(
     (s) => s.countdowns.filter((c) => countdownInfo(c.date, c.yearly).upcoming).length,

@@ -151,10 +151,31 @@ body.fd-widget {
   background-clip: content-box;
 }
 
-@utility glass {
+/* ---------------------------------------------------------------------------
+   Widget skins. All rely on theme tokens so text stays readable in light and
+   dark mode; only the panel surface differs.
+   --------------------------------------------------------------------------- */
+
+@utility fd-skin-glass {
   background-color: var(--fd-card);
   backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--fd-line);
+}
+
+@utility fd-skin-solid {
+  background-color: var(--fd-solid);
+  border: 1px solid var(--fd-line);
+}
+
+@utility fd-skin-outline {
+  background-color: color-mix(in srgb, var(--fd-solid) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fd-ink) 26%, transparent);
+  backdrop-filter: blur(7px);
+}
+
+@utility fd-skin-ghost {
+  background-color: transparent;
+  border: 1px solid transparent;
 }
 
 /**

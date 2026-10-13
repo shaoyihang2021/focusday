@@ -1,8 +1,17 @@
 import { create } from "zustand";
-import type { AppState, Countdown, Settings, ThemeMode, TimerMode, Todo } from "../types";
-import { defaultSettings, defaultState, defaultTimer, sanitizeState, todayKey, uid } from "./defaults";
+import type { AppState, Countdown, Settings, Tag, ThemeMode, TimerMode, Todo } from "../types";
+import {
+  TAG_COLORS,
+  defaultSettings,
+  defaultState,
+  defaultTags,
+  defaultTimer,
+  sanitizeState,
+  uid,
+} from "./defaults";
 import { broadcastState, loadState, onRemoteState, saveState } from "./persist";
 import { durationFor } from "../lib/timer";
+import { todayISO } from "../lib/date";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
 import { applyAccent, applyTheme } from "../lib/theme";
 
@@ -19,12 +28,17 @@ interface Actions {
   /** Replaces the whole data slice (used on boot and on cross-window sync). */
   hydrate: (next: AppState) => void;
 
-  addTodo: (title: string, estimate: number, priority: Todo["priority"]) => void;
+  addTodo: (title: string, estimate: number, priority: Todo["priority"], tagIds?: string[]) => void;
   updateTodo: (id: string, patch: Partial<Omit<Todo, "id">>) => void;
   toggleTodo: (id: string) => void;
   removeTodo: (id: string) => void;
   clearDoneTodos: () => void;
   setActiveTodo: (id: string | null) => void;
+
+  /** Creates a tag, or returns the existing one with the same name. */
+  addTag: (name: string) => Tag | null;
+  /** Deletes a tag and strips it from every todo. */
+  removeTag: (id: string) => void;
 
   addCountdown: (input: NewCountdown) => void;
   updateCountdown: (id: string, patch: Partial<Omit<Countdown, "id">>) => void;
@@ -50,9 +64,11 @@ export type Store = AppState & Actions;
 
 const snapshot = (s: Store): AppState => ({
   todos: s.todos,
+  tags: s.tags,
   countdowns: s.countdowns,
   settings: s.settings,
   timer: s.timer,
+  focusByDay: s.focusByDay,
 });
 
 let applyingRemote = false;
@@ -72,15 +88,17 @@ export const useAppStore = create<Store>((set, get) => ({
   hydrate: (next) => {
     set({
       todos: next.todos,
+      tags: next.tags,
       countdowns: next.countdowns,
       settings: next.settings,
       timer: next.timer,
+      focusByDay: next.focusByDay,
     });
     applyTheme(next.settings.theme);
     applyAccent(next.settings.accent);
   },
 
-  addTodo: (title, estimate, priority) => {
+  addTodo: (title, estimate, priority, tagIds = []) => {
     const trimmed = title.trim();
     if (!trimmed) return;
     const todo: Todo = {
@@ -90,10 +108,34 @@ export const useAppStore = create<Store>((set, get) => ({
       estimate: Math.max(1, Math.min(12, estimate)),
       completed: 0,
       priority,
+      tags: [...tagIds],
       createdAt: Date.now(),
     };
     set((s) => ({ todos: [todo, ...s.todos] }));
   },
+
+  addTag: (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const { tags } = get();
+    const existing = tags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+    const tag: Tag = {
+      id: uid(),
+      name: trimmed,
+      color: TAG_COLORS[tags.length % TAG_COLORS.length],
+    };
+    set((s) => ({ tags: [...s.tags, tag] }));
+    return tag;
+  },
+
+  removeTag: (id) =>
+    set((s) => ({
+      tags: s.tags.filter((t) => t.id !== id),
+      todos: s.todos.map((todo) =>
+        todo.tags.includes(id) ? { ...todo, tags: todo.tags.filter((tagId) => tagId !== id) } : todo,
+      ),
+    })),
 
   updateTodo: (id, patch) =>
     set((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
@@ -225,7 +267,7 @@ export const useAppStore = create<Store>((set, get) => ({
   },
 
   completeSession: () => {
-    const { timer, settings, todos } = get();
+    const { timer, settings, todos, focusByDay } = get();
     const finished = timer.mode;
     const every = Math.max(1, settings.longEvery);
     const nextRound = finished === "work" ? timer.round + 1 : timer.round;
@@ -240,11 +282,23 @@ export const useAppStore = create<Store>((set, get) => ({
         ? todos.map((t) => (t.id === activeId ? { ...t, completed: t.completed + 1 } : t))
         : todos;
 
-    const key = todayKey();
-    const nextToday = finished === "work" ? (timer.todayKey === key ? timer.today + 1 : 1) : timer.today;
+    // Record the finished focus session into the daily history (used by stats).
+    let nextFocusByDay = focusByDay;
+    if (finished === "work") {
+      const key = todayISO();
+      const previous = focusByDay[key] ?? { minutes: 0, count: 0 };
+      nextFocusByDay = {
+        ...focusByDay,
+        [key]: {
+          minutes: previous.minutes + settings.workMin,
+          count: previous.count + 1,
+        },
+      };
+    }
 
     set({
       todos: nextTodos,
+      focusByDay: nextFocusByDay,
       timer: {
         ...timer,
         mode: nextMode,
@@ -252,8 +306,6 @@ export const useAppStore = create<Store>((set, get) => ({
         running: autoStart,
         endAt: autoStart ? Date.now() + duration * 1000 : null,
         remaining: duration,
-        today: nextToday,
-        todayKey: key,
       },
     });
 
@@ -267,7 +319,13 @@ export const useAppStore = create<Store>((set, get) => ({
   },
 
   resetAll: () => {
-    set({ ...defaultState, settings: { ...defaultSettings }, timer: { ...defaultTimer } });
+    set({
+      ...defaultState,
+      tags: [...defaultTags],
+      settings: { ...defaultSettings },
+      timer: { ...defaultTimer },
+      focusByDay: {},
+    });
     applyTheme(defaultSettings.theme);
     applyAccent(defaultSettings.accent);
   },

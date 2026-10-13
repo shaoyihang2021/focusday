@@ -5,6 +5,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import PomodoroView from "./components/PomodoroView";
 import TodoView from "./components/TodoView";
 import CountdownView from "./components/CountdownView";
+import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
 import { useAppStore } from "./store/useAppStore";
 import { setWidgetVisible } from "./lib/widget";
@@ -15,6 +16,7 @@ const META: Record<View, { title: string; subtitle: string }> = {
   pomodoro: { title: "番茄钟", subtitle: "专注于当下这一件事" },
   todos: { title: "待办清单", subtitle: "把大目标拆成一个个小番茄" },
   countdowns: { title: "倒数日", subtitle: "记下每一个值得期待的日子" },
+  stats: { title: "统计", subtitle: "看看你的专注积累" },
   settings: { title: "设置", subtitle: "调成你喜欢的样子" },
 };
 
@@ -67,6 +69,7 @@ export default function App() {
           {view === "pomodoro" && <PomodoroView />}
           {view === "todos" && <TodoView />}
           {view === "countdowns" && <CountdownView />}
+          {view === "stats" && <StatsView />}
           {view === "settings" && <SettingsView />}
         </div>
       </main>

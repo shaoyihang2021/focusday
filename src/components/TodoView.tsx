@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Check, Flag, ListTodo, Plus, Target, Trash2 } from "lucide-react";
+import { Check, Flag, ListTodo, Plus, Tag as TagIcon, Target, Trash2, X } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
-import type { Todo } from "../types";
+import type { Tag, Todo } from "../types";
 
 type Filter = "all" | "open" | "done";
 
@@ -26,41 +26,124 @@ const priorityTone = (p: Todo["priority"]) =>
       ? "text-amber-500 bg-amber-500/10"
       : "text-slate-400 bg-slate-400/10";
 
+/** Small coloured label chip used in the list and the filter row. */
+function TagChip({
+  tag,
+  active,
+  onClick,
+  onRemove,
+  compact,
+}: {
+  tag: Tag;
+  active?: boolean;
+  onClick?: () => void;
+  onRemove?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "group/chip inline-flex items-center gap-1 rounded-full border transition-colors",
+        compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-[11px]",
+        active ? "border-transparent" : "border-line",
+      )}
+      style={
+        active
+          ? { backgroundColor: `${tag.color}22`, borderColor: `${tag.color}66` }
+          : undefined
+      }
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        title={onClick ? "按此标签筛选" : undefined}
+        className={cn("inline-flex items-center gap-1", onClick && "cursor-pointer")}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tag.color }} />
+        <span className={cn("font-medium", active ? "text-ink" : "text-muted")}>{tag.name}</span>
+      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="删除标签"
+          className="text-muted opacity-0 transition-opacity group-hover/chip:opacity-100 hover:text-rose-500"
+        >
+          <X size={compact ? 10 : 11} />
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
 export default function TodoView() {
   const todos = useAppStore((s) => s.todos);
+  const tags = useAppStore((s) => s.tags);
   const activeId = useAppStore((s) => s.timer.activeTodoId);
   const addTodo = useAppStore((s) => s.addTodo);
   const toggleTodo = useAppStore((s) => s.toggleTodo);
   const removeTodo = useAppStore((s) => s.removeTodo);
   const clearDoneTodos = useAppStore((s) => s.clearDoneTodos);
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
+  const addTag = useAppStore((s) => s.addTag);
+  const removeTag = useAppStore((s) => s.removeTag);
 
   const [title, setTitle] = useState("");
   const [estimate, setEstimate] = useState(1);
   const [priority, setPriority] = useState("1");
   const [filter, setFilter] = useState<Filter>("open");
+  const [draftTags, setDraftTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+
+  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
   const visible = useMemo(() => {
-    const list = todos.filter((t) =>
-      filter === "all" ? true : filter === "done" ? t.done : !t.done,
-    );
+    const list = todos.filter((t) => {
+      const matchesStatus =
+        filter === "all" ? true : filter === "done" ? t.done : !t.done;
+      const matchesTag =
+        tagFilter.length === 0 || t.tags.some((id) => tagFilter.includes(id));
+      return matchesStatus && matchesTag;
+    });
     return [...list].sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1;
       if (a.priority !== b.priority) return b.priority - a.priority;
       return b.createdAt - a.createdAt;
     });
-  }, [todos, filter]);
+  }, [todos, filter, tagFilter]);
 
   const doneCount = todos.filter((t) => t.done).length;
   const openCount = todos.length - doneCount;
 
+  const toggleDraftTag = (id: string) =>
+    setDraftTags((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleTagFilter = (id: string) =>
+    setTagFilter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
   const submit = () => {
     if (!title.trim()) return;
-    addTodo(title, estimate, Number(priority) as Todo["priority"]);
+    addTodo(title, estimate, Number(priority) as Todo["priority"], draftTags);
     setTitle("");
     setEstimate(1);
     setPriority("1");
+    setDraftTags([]);
     setFilter((f) => (f === "done" ? "open" : f));
+  };
+
+  const submitTag = () => {
+    const created = addTag(newTag);
+    if (created) setDraftTags((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
+    setNewTag("");
+  };
+
+  const confirmRemoveTag = (tag: Tag) => {
+    if (!window.confirm(`删除标签「${tag.name}」？它会同时从所有任务上移除。`)) return;
+    removeTag(tag.id);
+    setDraftTags((prev) => prev.filter((id) => id !== tag.id));
+    setTagFilter((prev) => prev.filter((id) => id !== tag.id));
   };
 
   return (
@@ -76,7 +159,7 @@ export default function TodoView() {
               className="w-full rounded-xl border border-line bg-solid px-4 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-xl border border-line bg-card px-2 py-1.5">
               {[1, 2, 3, 4].map((n) => (
                 <button
@@ -103,9 +186,38 @@ export default function TodoView() {
             </button>
           </div>
         </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
+            <TagIcon size={12} />
+            标签
+          </span>
+          {tags.map((tag) => (
+            <TagChip
+              key={tag.id}
+              tag={tag}
+              active={draftTags.includes(tag.id)}
+              onClick={() => toggleDraftTag(tag.id)}
+              onRemove={() => confirmRemoveTag(tag)}
+            />
+          ))}
+          <input
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitTag();
+              }
+            }}
+            onBlur={() => newTag.trim() && submitTag()}
+            placeholder="+ 新建标签"
+            className="w-24 rounded-full border border-dashed border-line bg-transparent px-2 py-1 text-[11px] text-ink outline-none placeholder:text-muted focus:border-brand"
+          />
+        </div>
       </Card>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
         <p className="text-xs text-muted">
           {openCount} 项待办 · {doneCount} 项完成
@@ -121,11 +233,45 @@ export default function TodoView() {
         </p>
       </div>
 
+      {tags.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTagFilter([])}
+            className={cn(
+              "rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
+              tagFilter.length === 0
+                ? "border-transparent bg-brand-soft text-brand"
+                : "border-line text-muted hover:text-ink",
+            )}
+          >
+            全部标签
+          </button>
+          {tags.map((tag) => (
+            <TagChip
+              key={tag.id}
+              tag={tag}
+              active={tagFilter.includes(tag.id)}
+              onClick={() => toggleTagFilter(tag.id)}
+            />
+          ))}
+          {tagFilter.length > 0 ? (
+            <span className="text-[11px] text-muted">已按 {tagFilter.length} 个标签筛选</span>
+          ) : null}
+        </div>
+      ) : null}
+
       <Card className="fd-pop divide-y divide-line overflow-hidden">
         {visible.length === 0 ? (
           <EmptyState
             icon={<ListTodo size={24} />}
-            title={filter === "done" ? "还没有完成的任务" : "这里空空如也"}
+            title={
+              tagFilter.length > 0
+                ? "这个标签下还没有任务"
+                : filter === "done"
+                  ? "还没有完成的任务"
+                  : "这里空空如也"
+            }
             hint="添加一个任务，然后回到番茄钟开始专注。完成的番茄会累积在任务上。"
           />
         ) : (
@@ -156,23 +302,36 @@ export default function TodoView() {
                 >
                   {todo.title}
                 </p>
-                <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium",
+                      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
                       priorityTone(todo.priority),
                     )}
                   >
                     <Flag size={10} />
                     {todo.priority === 2 ? "高" : todo.priority === 1 ? "中" : "低"}
                   </span>
-                  <span className="tabular-nums">
+                  <span className="text-[11px] tabular-nums text-muted">
                     {todo.completed}/{todo.estimate} 🍅
                   </span>
                   {activeId === todo.id && !todo.done ? (
-                    <span className="font-medium text-brand">专注中</span>
+                    <span className="text-[11px] font-medium text-brand">专注中</span>
                   ) : null}
-                </p>
+                  {todo.tags.map((id) => {
+                    const tag = tagById.get(id);
+                    if (!tag) return null;
+                    return (
+                      <TagChip
+                        key={id}
+                        tag={tag}
+                        compact
+                        active={tagFilter.includes(id)}
+                        onClick={() => toggleTagFilter(id)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               {!todo.done ? (

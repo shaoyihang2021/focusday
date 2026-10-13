@@ -2,6 +2,7 @@ import { Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lu
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import { computeRemaining, durationFor, formatClock, modeLabel } from "../lib/timer";
+import { todayStat } from "../lib/stats";
 import type { TimerMode } from "../types";
 import { Ring } from "./Ring";
 import { Card, Segmented } from "./ui";
@@ -22,6 +23,7 @@ export default function PomodoroView() {
   const skip = useAppStore((s) => s.skip);
   const setMode = useAppStore((s) => s.setMode);
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
+  const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(250);
   const remaining = computeRemaining(timer, now);
@@ -139,12 +141,12 @@ export default function PomodoroView() {
         <Card className="fd-pop grid grid-cols-2 gap-4 p-5">
           <div>
             <p className="text-[11px] font-medium tracking-wide text-muted">今日番茄</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-ink">{timer.today}</p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-ink">{today.count}</p>
           </div>
           <div>
             <p className="text-[11px] font-medium tracking-wide text-muted">今日专注时长</p>
             <p className="mt-1 text-3xl font-bold tabular-nums text-ink">
-              {timer.today * settings.workMin}
+              {today.minutes}
               <span className="ml-0.5 text-sm font-medium text-muted">min</span>
             </p>
           </div>

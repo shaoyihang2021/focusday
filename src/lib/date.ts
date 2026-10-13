@@ -16,6 +16,21 @@ export interface CountdownInfo {
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
+/** `YYYY-MM-DD` key for a date (defaults to today). */
+export const dateKey = (d: Date = new Date()): string =>
+  `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
+
+export const todayISO = (): string => dateKey();
+
+/** `周一` … `周日` for a `YYYY-MM-DD` string. */
+export const weekdayName = (dateStr: string): string => WEEKDAYS[parseDay(dateStr).getDay()];
+
+/** Short `M/D` label used on chart axes. */
+export const shortDate = (dateStr: string): string => {
+  const d = parseDay(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+};
+
 /**
  * Number of days until the target date. Non-repeating events in the past keep
  * a negative value so we can render "已过去 N 天". Yearly events roll over to
@@ -52,9 +67,4 @@ export function countdownInfo(
 export const formatDate = (dateStr: string): string => {
   const d = parseDay(dateStr);
   return `${d.getFullYear()}/${`${d.getMonth() + 1}`.padStart(2, "0")}/${`${d.getDate()}`.padStart(2, "0")}`;
-};
-
-export const todayISO = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
 };

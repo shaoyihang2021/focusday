@@ -1,19 +1,27 @@
 import type { ReactNode } from "react";
-import { Bell, Eye, EyeOff, LayoutGrid, Palette, RotateCcw, Volume2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Bell,
+  Database,
+  Download,
+  Eye,
+  EyeOff,
+  LayoutGrid,
+  Palette,
+  Rocket,
+  RotateCcw,
+  Upload,
+} from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { Card, Stepper, Toggle } from "./ui";
-import { setWidgetAlwaysOnTop, setWidgetVisible } from "../lib/widget";
+import { widgetScale } from "../store/defaults";
+import { Card, Segmented, Stepper, Toggle } from "./ui";
+import { applyWidgetWindowSettings, setAutoLaunch, setWidgetVisible } from "../lib/widget";
+import { exportBackup, importBackup } from "../lib/backup";
 import { isTauri } from "../lib/env";
+import { todayISO } from "../lib/date";
+import type { ThemeMode, WidgetSize } from "../types";
 
-function Section({
-  icon,
-  title,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <Card className="fd-pop p-5">
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
@@ -37,12 +45,59 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
+const THEMES: { value: ThemeMode; label: string }[] = [
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
+  { value: "system", label: "系统" },
+];
+
+const SIZES: { value: WidgetSize; label: string }[] = [
+  { value: "small", label: "小" },
+  { value: "medium", label: "中" },
+  { value: "large", label: "大" },
+];
+
 export default function SettingsView() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const setTheme = useAppStore((s) => s.setTheme);
+  const hydrate = useAppStore((s) => s.hydrate);
   const resetAll = useAppStore((s) => s.resetAll);
   const tauri = isTauri();
+
+  const [status, setStatus] = useState<string | null>(null);
+
+  const applyWidgetPrefs = (next: { alwaysOnTop?: boolean; size?: WidgetSize }) => {
+    void applyWidgetWindowSettings({
+      alwaysOnTop: next.alwaysOnTop ?? settings.widgetAlwaysOnTop,
+      scale: widgetScale[next.size ?? settings.widgetSize],
+    });
+  };
+
+  const handleExport = async () => {
+    try {
+      const { todos, countdowns, settings: s, timer } = useAppStore.getState();
+      const path = await exportBackup({ todos, countdowns, settings: s, timer });
+      setStatus(path ? `备份已导出到 ${path}` : "已取消导出");
+    } catch (err) {
+      setStatus(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!window.confirm("导入备份会覆盖当前全部数据，确定继续吗？")) return;
+    try {
+      const next = await importBackup();
+      if (!next) {
+        setStatus("已取消导入");
+        return;
+      }
+      hydrate(next);
+      setStatus("备份导入成功");
+    } catch (err) {
+      setStatus(`导入失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
@@ -106,23 +161,34 @@ export default function SettingsView() {
         />
       </Section>
 
+      <Section icon={<Rocket size={16} />} title="启动与后台">
+        <Toggle
+          checked={settings.autoLaunch}
+          onChange={(v) => {
+            updateSettings({ autoLaunch: v });
+            // Outside the desktop shell there is nothing to apply.
+            if (!tauri) return;
+            void setAutoLaunch(v).then((actual) => {
+              if (actual !== v) {
+                updateSettings({ autoLaunch: actual });
+                setStatus("系统未接受开机自启设置");
+              }
+            });
+          }}
+          label="开机自动启动"
+          hint={tauri ? "随 Windows 登录自动在后台启动" : "仅在桌面客户端中可用"}
+        />
+        <Toggle
+          checked={settings.closeToTray}
+          onChange={(v) => updateSettings({ closeToTray: v })}
+          label="关闭窗口时最小化到托盘"
+          hint="关闭主窗口后应用继续在系统托盘运行，可从托盘菜单退出"
+        />
+      </Section>
+
       <Section icon={<Palette size={16} />} title="外观">
         <Row label="主题" hint="浅色 / 深色 / 跟随系统">
-          <div className="flex gap-1 rounded-xl border border-line bg-card p-1">
-            {(["light", "dark", "system"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setTheme(mode)}
-                className={
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-                  (settings.theme === mode ? "bg-solid text-ink shadow-sm" : "text-muted hover:text-ink")
-                }
-              >
-                {mode === "light" ? "浅色" : mode === "dark" ? "深色" : "系统"}
-              </button>
-            ))}
-          </div>
+          <Segmented options={THEMES} value={settings.theme} onChange={setTheme} />
         </Row>
       </Section>
 
@@ -133,7 +199,7 @@ export default function SettingsView() {
               type="button"
               disabled={!tauri}
               onClick={() => void setWidgetVisible(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
             >
               <Eye size={14} /> 显示
             </button>
@@ -151,14 +217,55 @@ export default function SettingsView() {
           checked={settings.widgetAlwaysOnTop}
           onChange={(v) => {
             updateSettings({ widgetAlwaysOnTop: v });
-            void setWidgetAlwaysOnTop(v);
+            applyWidgetPrefs({ alwaysOnTop: v });
           }}
           label="小组件窗口置顶"
           hint="开启后小组件会始终显示在其他窗口之上"
         />
+        <Row label="小组件尺寸" hint="改变小组件浮窗的大小">
+          <Segmented
+            options={SIZES}
+            value={settings.widgetSize}
+            onChange={(size) => {
+              updateSettings({ widgetSize: size });
+              applyWidgetPrefs({ size });
+            }}
+          />
+        </Row>
+        <Row label="不透明度" hint={`当前 ${Math.round(settings.widgetOpacity * 100)}%`}>
+          <input
+            type="range"
+            min={40}
+            max={100}
+            step={2}
+            value={Math.round(settings.widgetOpacity * 100)}
+            onChange={(e) => updateSettings({ widgetOpacity: Number(e.target.value) / 100 })}
+            className="w-40"
+          />
+        </Row>
       </Section>
 
-      <Section icon={<Volume2 size={16} />} title="数据">
+      <Section icon={<Database size={16} />} title="数据">
+        <Row label="导出备份" hint="把所有数据保存为 JSON 文件">
+          <button
+            type="button"
+            disabled={!tauri}
+            onClick={() => void handleExport()}
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Download size={14} /> 导出
+          </button>
+        </Row>
+        <Row label="导入备份" hint="从 JSON 文件恢复数据，会覆盖当前数据">
+          <button
+            type="button"
+            disabled={!tauri}
+            onClick={() => void handleImport()}
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Upload size={14} /> 导入
+          </button>
+        </Row>
         <Row label="重置全部数据" hint="清空待办、倒数日与统计数据，操作不可撤销">
           <button
             type="button"
@@ -172,8 +279,14 @@ export default function SettingsView() {
         </Row>
       </Section>
 
+      {status ? (
+        <p className="fd-pop rounded-xl border border-line bg-card px-4 py-2.5 text-xs break-all text-muted">
+          {status}
+        </p>
+      ) : null}
+
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.1.0 · 番茄工作法 + 待办清单 + 倒数日
+        FocusDay v0.2.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
       </p>
     </div>
   );

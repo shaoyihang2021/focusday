@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { Coffee, Minus, Pause, Play, SquareArrowOutUpRight, Timer } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+import { widgetScale } from "../store/defaults";
 import { useNow } from "../hooks/useNow";
 import { computeRemaining, durationFor, formatClock } from "../lib/timer";
 import { countdownInfo } from "../lib/date";
-import { setWidgetAlwaysOnTop, focusMainWindow, hideSelf } from "../lib/widget";
+import { applyWidgetWindowSettings, focusMainWindow, hideSelf } from "../lib/widget";
 import { Ring } from "./Ring";
 import { cn } from "../lib/cn";
 
@@ -28,8 +29,11 @@ export default function WidgetApp() {
   }, []);
 
   useEffect(() => {
-    void setWidgetAlwaysOnTop(settings.widgetAlwaysOnTop);
-  }, [settings.widgetAlwaysOnTop]);
+    void applyWidgetWindowSettings({
+      alwaysOnTop: settings.widgetAlwaysOnTop,
+      scale: widgetScale[settings.widgetSize],
+    });
+  }, [settings.widgetAlwaysOnTop, settings.widgetSize]);
 
   const nextTodo = todos.find((t) => !t.done) ?? null;
 
@@ -44,7 +48,10 @@ export default function WidgetApp() {
 
   return (
     <div className="h-full w-full p-2">
-      <div className="glass flex h-full w-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/20">
+      <div
+        className="glass flex h-full w-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/20"
+        style={{ opacity: settings.widgetOpacity }}
+      >
         {/* drag handle */}
         <div
           data-tauri-drag-region

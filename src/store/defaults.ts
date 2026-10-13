@@ -1,4 +1,4 @@
-import type { AppState, Settings, TimerState } from "../types";
+import type { AppState, Settings, TimerState, WidgetSize } from "../types";
 
 export const THEME_STORAGE_KEY = "fd-theme";
 
@@ -18,7 +18,18 @@ export const defaultSettings: Settings = {
   sound: true,
   notify: true,
   widgetAlwaysOnTop: true,
+  widgetOpacity: 0.92,
+  widgetSize: "medium",
+  autoLaunch: false,
+  closeToTray: true,
   theme: "system",
+};
+
+/** Multipliers applied to the widget window's base size (324 × 216). */
+export const widgetScale: Record<WidgetSize, number> = {
+  small: 0.85,
+  medium: 1,
+  large: 1.25,
 };
 
 export const defaultTimer: TimerState = {
@@ -66,6 +77,15 @@ export function sanitizeState(input: unknown): AppState {
       sound: asBool(settings.sound, defaultSettings.sound),
       notify: asBool(settings.notify, defaultSettings.notify),
       widgetAlwaysOnTop: asBool(settings.widgetAlwaysOnTop, defaultSettings.widgetAlwaysOnTop),
+      widgetOpacity: Math.min(1, Math.max(0.4, asNumber(settings.widgetOpacity, defaultSettings.widgetOpacity))),
+      widgetSize:
+        settings.widgetSize === "small" ||
+        settings.widgetSize === "medium" ||
+        settings.widgetSize === "large"
+          ? settings.widgetSize
+          : defaultSettings.widgetSize,
+      autoLaunch: asBool(settings.autoLaunch, defaultSettings.autoLaunch),
+      closeToTray: asBool(settings.closeToTray, defaultSettings.closeToTray),
       theme:
         settings.theme === "light" || settings.theme === "dark" || settings.theme === "system"
           ? settings.theme

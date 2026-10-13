@@ -1,7 +1,7 @@
 {
   "name": "focusday",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "FocusDay · 番茄工作法 + 待办清单 + 倒数日，带桌面小组件的 Windows 桌面应用",
   "type": "module",
   "license": "MIT",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.3",
+    "@tauri-apps/plugin-dialog": "^2.8.2",
     "@tauri-apps/plugin-notification": "^2.6.0",
     "@tauri-apps/plugin-store": "^2.5.0",
     "lucide-react": "^1.55.0",

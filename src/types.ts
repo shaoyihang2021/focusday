@@ -2,6 +2,9 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type TimerMode = "work" | "short" | "long";
 
+/** Preset sizes for the detached desktop widget window. */
+export type WidgetSize = "small" | "medium" | "large";
+
 export interface Todo {
   id: string;
   title: string;
@@ -40,6 +43,13 @@ export interface Settings {
   sound: boolean;
   notify: boolean;
   widgetAlwaysOnTop: boolean;
+  /** Widget panel opacity, 0.4 – 1. */
+  widgetOpacity: number;
+  widgetSize: WidgetSize;
+  /** Launch FocusDay automatically when Windows starts. */
+  autoLaunch: boolean;
+  /** Hide to the system tray instead of quitting when the window is closed. */
+  closeToTray: boolean;
   theme: ThemeMode;
 }
 

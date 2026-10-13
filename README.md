@@ -46,7 +46,21 @@ FocusDay 把三件每天都会用到的小工具放进了一个界面里：**专
 - 实时显示当前计时、模式、今日番茄数
 - 展示置顶的倒数日与下一条待办
 - 可直接在小组件上开始 / 暂停计时，一键打开主窗口
-- 支持置顶开关，切换后立即生效
+- 支持置顶开关，**尺寸（小 / 中 / 大）与不透明度可调**，调整后立即生效
+
+### 🖥 系统托盘常驻
+- 关闭主窗口时自动最小化到系统托盘，应用继续在后台运行
+- 托盘右键菜单：显示主窗口 / 显示小组件 / 隐藏小组件 / 退出
+- 左键单击托盘图标即可唤回主窗口
+- 不需要常驻时，可在设置中关闭「关闭窗口时最小化到托盘」，此时关闭窗口会直接退出应用
+
+### 🚀 开机自启
+- 一键把 FocusDay 加入 Windows 开机启动项（注册表 Run 项），随登录自动在后台拉起
+- 开关状态会与系统实际状态核对，设置不生效时会提示
+
+### 💾 数据备份
+- 一键导出全部数据为 JSON 文件，随时导入恢复
+- 备份内容包含待办、倒数日、番茄统计与全部设置
 
 ### 🎨 界面与外观
 - 毛玻璃质感 + 柔和渐变背景，深浅色模式一键切换
@@ -65,13 +79,17 @@ FocusDay 把三件每天都会用到的小工具放进了一个界面里：**专
 | 图标 | lucide-react |
 | 数据持久化 | tauri-plugin-store（跨窗口同步） |
 | 系统通知 | tauri-plugin-notification |
+| 系统托盘 | Tauri 内置 tray-icon |
+| 开机自启 | tauri-plugin-autostart |
+| 文件对话框 | tauri-plugin-dialog |
 
 **架构要点**
 
 - 主窗口与小组件是**两个独立 WebView 窗口**，共享同一份 Zustand 状态；
 - 状态变更通过 Tauri 事件广播到其他窗口，实现秒级双向同步；
 - 计时引擎只在主窗口运行，避免多窗口重复触发「专注结束」；
-- 剩余时间由 `endAt` 时间戳推导，两个窗口显示永远一致。
+- 剩余时间由 `endAt` 时间戳推导，两个窗口显示永远一致；
+- 关闭主窗口的行为（托盘常驻 / 直接退出）由前端拦截 `close-requested` 实现，因此能随时跟随设置变化。
 
 ## 📦 下载安装
 
@@ -105,14 +123,14 @@ npm run app:build
 
 产物位于 `src-tauri/target/release/bundle/`：
 
-- `nsis/FocusDay_0.1.0_x64-setup.exe`
-- `msi/FocusDay_0.1.0_x64_en-US.msi`
+- `nsis/FocusDay_0.2.0_x64-setup.exe`
+- `msi/FocusDay_0.2.0_x64_en-US.msi`
 
 也可以直接打 tag，让 GitHub Actions 自动完成 Windows 构建与 Release 发布：
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 ## 📁 项目结构
@@ -122,12 +140,12 @@ focusday/
 ├─ src/                       # 前端（React）
 │  ├─ components/             # 界面组件（番茄钟 / 待办 / 倒数日 / 小组件…）
 │  ├─ store/                  # Zustand 状态、持久化与跨窗口同步
-│  ├─ lib/                    # 日期、计时、主题、通知、窗口等工具
+│  ├─ lib/                    # 日期、计时、主题、通知、备份、窗口等工具
 │  ├─ hooks/
 │  ├─ App.tsx                 # 主窗口布局
 │  └─ main.tsx                # 入口：按 hash 区分主窗口 / 小组件
 ├─ src-tauri/                 # 桌面外壳（Rust）
-│  ├─ src/lib.rs              # 小组件窗口的创建、显示与置顶命令
+│  ├─ src/lib.rs              # 托盘、小组件窗口、尺寸、备份、开机自启命令
 │  ├─ src/main.rs
 │  ├─ capabilities/           # 窗口与插件权限
 │  ├─ icons/
@@ -145,7 +163,7 @@ focusday/
 %APPDATA%\com.shaoyihang.focusday\focusday.store.json
 ```
 
-在「设置 → 数据」中可一键重置全部数据。
+在「设置 → 数据」中可导出 / 导入备份，或一键重置全部数据。
 
 ## 📄 License
 

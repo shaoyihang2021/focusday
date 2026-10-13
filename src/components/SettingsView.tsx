@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  Keyboard,
   LayoutGrid,
   Palette,
   Rocket,
@@ -15,11 +16,16 @@ import {
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import { Card, Segmented, Stepper, Toggle } from "./ui";
-import { applyWidgetWindowSettings, setAutoLaunch, setWidgetVisible } from "../lib/widget";
+import {
+  applyWidgetWindowSettings,
+  setAutoLaunch,
+  setGlobalShortcut,
+  setWidgetVisible,
+} from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
 import { isTauri } from "../lib/env";
 import { todayISO } from "../lib/date";
-import type { ThemeMode, WidgetSize } from "../types";
+import type { Accent, ThemeMode, WidgetSize } from "../types";
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
@@ -57,6 +63,22 @@ const SIZES: { value: WidgetSize; label: string }[] = [
   { value: "large", label: "大" },
 ];
 
+const ACCENT_SWATCH: { value: Accent; label: string; color: string }[] = [
+  { value: "tomato", label: "番茄红", color: "#f74a2c" },
+  { value: "ocean", label: "海洋蓝", color: "#2563eb" },
+  { value: "violet", label: "紫罗兰", color: "#7c3aed" },
+  { value: "forest", label: "森林绿", color: "#158f4a" },
+  { value: "amber", label: "琥珀黄", color: "#b7791f" },
+];
+
+const HOTKEYS: { value: string; label: string }[] = [
+  { value: "", label: "关闭快捷键" },
+  { value: "CommandOrControl+Shift+F", label: "Ctrl + Shift + F" },
+  { value: "CommandOrControl+Shift+Space", label: "Ctrl + Shift + 空格" },
+  { value: "Alt+Shift+F", label: "Alt + Shift + F" },
+  { value: "CommandOrControl+Alt+F", label: "Ctrl + Alt + F" },
+];
+
 export default function SettingsView() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
@@ -71,6 +93,21 @@ export default function SettingsView() {
     void applyWidgetWindowSettings({
       alwaysOnTop: next.alwaysOnTop ?? settings.widgetAlwaysOnTop,
       scale: widgetScale[next.size ?? settings.widgetSize],
+    });
+  };
+
+  const handleHotkey = (accelerator: string) => {
+    updateSettings({ hotkey: accelerator });
+    if (!tauri) return;
+    void setGlobalShortcut(accelerator).then((active) => {
+      if (accelerator && !active) {
+        updateSettings({ hotkey: "" });
+        setStatus("快捷键注册失败，可能已被其他程序占用");
+      } else if (accelerator) {
+        setStatus("全局快捷键已生效，可在任意界面唤起主窗口");
+      } else {
+        setStatus("已关闭全局快捷键");
+      }
     });
   };
 
@@ -159,6 +196,32 @@ export default function SettingsView() {
           label="系统通知"
           hint="结束提醒会以系统通知推送"
         />
+        <Toggle
+          checked={settings.trayCountdown}
+          onChange={(v) => updateSettings({ trayCountdown: v })}
+          label="托盘显示倒计时"
+          hint="鼠标悬停托盘图标即可看到剩余时间与今日番茄数"
+        />
+      </Section>
+
+      <Section icon={<Keyboard size={16} />} title="全局快捷键">
+        <Row
+          label="唤起主窗口"
+          hint={tauri ? "在任意程序中显示 / 隐藏主窗口" : "仅在桌面客户端中可用"}
+        >
+          <select
+            value={settings.hotkey}
+            onChange={(e) => handleHotkey(e.target.value)}
+            disabled={!tauri}
+            className="rounded-xl border border-line bg-solid px-3 py-2 text-sm text-ink outline-none focus:border-brand disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {HOTKEYS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Row>
       </Section>
 
       <Section icon={<Rocket size={16} />} title="启动与后台">
@@ -189,6 +252,32 @@ export default function SettingsView() {
       <Section icon={<Palette size={16} />} title="外观">
         <Row label="主题" hint="浅色 / 深色 / 跟随系统">
           <Segmented options={THEMES} value={settings.theme} onChange={setTheme} />
+        </Row>
+        <Row label="主题配色" hint="统一改变按钮、进度环与选中态的强调色">
+          <div className="flex items-center gap-1.5">
+            {ACCENT_SWATCH.map((accent) => {
+              const active = settings.accent === accent.value;
+              return (
+                <button
+                  key={accent.value}
+                  type="button"
+                  title={accent.label}
+                  onClick={() => updateSettings({ accent: accent.value })}
+                  className={
+                    "grid h-7 w-7 place-items-center rounded-full border transition-transform " +
+                    (active
+                      ? "scale-110 border-transparent ring-2 ring-brand ring-offset-2 ring-offset-card"
+                      : "border-line hover:scale-105")
+                  }
+                >
+                  <span
+                    className="h-4 w-4 rounded-full"
+                    style={{ backgroundColor: accent.color }}
+                  />
+                </button>
+              );
+            })}
+          </div>
         </Row>
       </Section>
 
@@ -232,6 +321,12 @@ export default function SettingsView() {
             }}
           />
         </Row>
+        <Toggle
+          checked={settings.widgetLocked}
+          onChange={(v) => updateSettings({ widgetLocked: v })}
+          label="锁定小组件位置"
+          hint="锁定后无法拖动小组件，避免误触；位置会被记住并在下次启动时还原"
+        />
         <Row label="不透明度" hint={`当前 ${Math.round(settings.widgetOpacity * 100)}%`}>
           <input
             type="range"
@@ -286,7 +381,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.2.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
+        FocusDay v0.3.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
       </p>
     </div>
   );

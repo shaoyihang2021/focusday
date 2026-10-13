@@ -1,4 +1,4 @@
-import type { AppState, Settings, TimerState, WidgetSize } from "../types";
+import type { Accent, AppState, Point, Settings, TimerState, WidgetSize } from "../types";
 
 export const THEME_STORAGE_KEY = "fd-theme";
 
@@ -20,10 +20,17 @@ export const defaultSettings: Settings = {
   widgetAlwaysOnTop: true,
   widgetOpacity: 0.92,
   widgetSize: "medium",
+  widgetLocked: false,
+  widgetPos: null,
+  trayCountdown: true,
+  hotkey: "",
   autoLaunch: false,
   closeToTray: true,
   theme: "system",
+  accent: "tomato",
 };
+
+export const ACCENTS: Accent[] = ["tomato", "ocean", "violet", "forest", "amber"];
 
 /** Multipliers applied to the widget window's base size (324 × 216). */
 export const widgetScale: Record<WidgetSize, number> = {
@@ -56,6 +63,14 @@ const asNumber = (value: unknown, fallback: number): number =>
 const asBool = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback;
 
+const asPoint = (value: unknown): Point | null => {
+  if (!value || typeof value !== "object") return null;
+  const p = value as { x?: unknown; y?: unknown };
+  return typeof p.x === "number" && typeof p.y === "number" && Number.isFinite(p.x) && Number.isFinite(p.y)
+    ? { x: p.x, y: p.y }
+    : null;
+};
+
 /**
  * Merges whatever we read from disk with the current defaults. This keeps old
  * data files valid after new fields are introduced.
@@ -86,6 +101,13 @@ export function sanitizeState(input: unknown): AppState {
           : defaultSettings.widgetSize,
       autoLaunch: asBool(settings.autoLaunch, defaultSettings.autoLaunch),
       closeToTray: asBool(settings.closeToTray, defaultSettings.closeToTray),
+      widgetLocked: asBool(settings.widgetLocked, defaultSettings.widgetLocked),
+      widgetPos: asPoint(settings.widgetPos),
+      trayCountdown: asBool(settings.trayCountdown, defaultSettings.trayCountdown),
+      hotkey: typeof settings.hotkey === "string" ? settings.hotkey : defaultSettings.hotkey,
+      accent: ACCENTS.includes(settings.accent as Accent)
+        ? (settings.accent as Accent)
+        : defaultSettings.accent,
       theme:
         settings.theme === "light" || settings.theme === "dark" || settings.theme === "system"
           ? settings.theme

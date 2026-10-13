@@ -7,6 +7,7 @@ use tauri::{
     AppHandle, LogicalSize, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Label of the detached, always-on-top desktop widget window.
 const WIDGET_LABEL: &str = "widget";
@@ -57,6 +58,20 @@ fn show_widget<R: Runtime>(app: &AppHandle<R>) {
 fn hide_widget<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
         let _ = window.hide();
+    }
+}
+
+/// Shows the main window when it is hidden, hides it when it is visible.
+fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
+    let Some(window) = app.get_webview_window(MAIN_LABEL) else {
+        return;
+    };
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.hide();
+    } else {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
     }
 }
 
@@ -111,6 +126,38 @@ fn set_auto_launch(app: AppHandle, value: bool) -> Result<bool, String> {
     };
     outcome.map_err(|e| e.to_string())?;
     autolaunch.is_enabled().map_err(|e| e.to_string())
+}
+
+/// Updates the tray icon's hover tooltip, e.g. the live countdown.
+#[tauri::command]
+fn update_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Registers the global shortcut used to toggle the main window.
+/// Passing `None` (or an empty string) unregisters everything.
+/// Returns whether a shortcut is active afterwards.
+#[tauri::command]
+fn set_global_shortcut(app: AppHandle, accelerator: Option<String>) -> Result<bool, String> {
+    let shortcuts = app.global_shortcut();
+    shortcuts.unregister_all().map_err(|e| e.to_string())?;
+
+    let Some(accelerator) = accelerator.filter(|acc| !acc.trim().is_empty()) else {
+        return Ok(false);
+    };
+
+    shortcuts
+        .on_shortcut(accelerator.as_str(), move |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                toggle_main(app);
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
+    Ok(true)
 }
 
 /// Writes an exported backup to a user-chosen path.
@@ -191,12 +238,15 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             toggle_widget,
             set_widget_always_on_top,
             set_widget_size,
             focus_main_window,
             set_auto_launch,
+            update_tray_tooltip,
+            set_global_shortcut,
             write_backup,
             read_backup,
             quit_app

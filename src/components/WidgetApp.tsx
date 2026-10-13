@@ -1,11 +1,17 @@
-import { useEffect } from "react";
-import { Coffee, Minus, Pause, Play, SquareArrowOutUpRight, Timer } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Coffee, Lock, LockOpen, Minus, Pause, Play, SquareArrowOutUpRight, Timer } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import { useNow } from "../hooks/useNow";
 import { computeRemaining, durationFor, formatClock } from "../lib/timer";
 import { countdownInfo } from "../lib/date";
-import { applyWidgetWindowSettings, focusMainWindow, hideSelf } from "../lib/widget";
+import {
+  applyWidgetWindowSettings,
+  focusMainWindow,
+  hideSelf,
+  onWidgetMoved,
+  restoreWidgetPosition,
+} from "../lib/widget";
 import { Ring } from "./Ring";
 import { cn } from "../lib/cn";
 
@@ -15,6 +21,7 @@ export default function WidgetApp() {
   const todos = useAppStore((s) => s.todos);
   const countdowns = useAppStore((s) => s.countdowns);
   const toggleRun = useAppStore((s) => s.toggleRun);
+  const updateSettings = useAppStore((s) => s.updateSettings);
 
   const now = useNow(500);
   const remaining = computeRemaining(timer, now);
@@ -35,6 +42,41 @@ export default function WidgetApp() {
     });
   }, [settings.widgetAlwaysOnTop, settings.widgetSize]);
 
+  // Restore the last position once, after the store has hydrated.
+  const restored = useRef(false);
+  const savedPos = settings.widgetPos;
+  useEffect(() => {
+    if (restored.current || !savedPos) return;
+    restored.current = true;
+    void restoreWidgetPosition(savedPos);
+  }, [savedPos]);
+
+  // Remember the position while the widget can be moved.
+  useEffect(() => {
+    if (settings.widgetLocked) return;
+    let debounce: number | undefined;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    void onWidgetMoved((pos) => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => updateSettings({ widgetPos: pos }), 400);
+    }).then((stop) => {
+      if (cancelled) stop();
+      else unlisten = stop;
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(debounce);
+      unlisten?.();
+    };
+  }, [settings.widgetLocked, updateSettings]);
+
+  const dragProps: Record<string, string> = settings.widgetLocked
+    ? {}
+    : { "data-tauri-drag-region": "true" };
+
   const nextTodo = todos.find((t) => !t.done) ?? null;
 
   const pinned = countdowns.filter((c) => c.pinned);
@@ -52,19 +94,34 @@ export default function WidgetApp() {
         className="glass flex h-full w-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/20"
         style={{ opacity: settings.widgetOpacity }}
       >
-        {/* drag handle */}
+        {/* drag handle — dragging is disabled while the widget is locked */}
         <div
-          data-tauri-drag-region
-          className="flex h-8 shrink-0 items-center gap-2 px-3.5 select-none"
+          {...dragProps}
+          className={cn(
+            "flex h-8 shrink-0 items-center gap-2 px-3.5 select-none",
+            settings.widgetLocked ? "cursor-default" : "cursor-move",
+          )}
         >
           <span className="h-2 w-2 rounded-full bg-brand" />
           <span
-            data-tauri-drag-region
+            {...dragProps}
             className="text-[11px] font-semibold tracking-wide text-muted"
           >
             FocusDay
           </span>
           <span className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              aria-pressed={settings.widgetLocked}
+              onClick={() => updateSettings({ widgetLocked: !settings.widgetLocked })}
+              title={settings.widgetLocked ? "解锁位置（可拖动）" : "锁定位置（防误拖）"}
+              className={cn(
+                "grid h-5 w-5 place-items-center rounded-md transition-colors",
+                settings.widgetLocked ? "text-brand" : "text-muted hover:text-ink",
+              )}
+            >
+              {settings.widgetLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+            </button>
             <button
               type="button"
               onClick={() => void focusMainWindow()}
@@ -85,7 +142,7 @@ export default function WidgetApp() {
         </div>
 
         <div className="flex flex-1 items-center gap-3 px-3.5 pb-1">
-          <Ring progress={progress} size={86} stroke={7} color={isBreak ? "#1fa2a6" : "var(--fd-brand)"}>
+          <Ring progress={progress} size={86} stroke={7}>
             <span className="text-lg font-bold tabular-nums tracking-tight text-ink">
               {formatClock(remaining)}
             </span>
@@ -132,7 +189,7 @@ export default function WidgetApp() {
           onClick={toggleRun}
           className={cn(
             "mx-3.5 mb-3 flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-white transition-all",
-            "bg-gradient-to-br from-[#ff7a5c] to-[#e23213] shadow-md shadow-brand/25 hover:brightness-105 active:scale-[0.98]",
+            "fd-primary shadow-md shadow-brand/25 hover:brightness-105 active:scale-[0.98]",
           )}
         >
           {timer.running ? <Pause size={14} /> : <Play size={14} />}

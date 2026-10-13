@@ -31,7 +31,7 @@ export function Sidebar({ view, onChange }: Props) {
   return (
     <aside className="flex w-[212px] shrink-0 flex-col gap-1 border-r border-line px-3 py-4">
       <div className="mb-4 flex items-center gap-2.5 px-2">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#ff7a5c] to-[#e23213] text-white shadow-lg shadow-brand/25">
+        <div className="fd-primary grid h-9 w-9 place-items-center rounded-xl shadow-lg shadow-brand/25">
           <Timer size={18} />
         </div>
         <div className="leading-tight">

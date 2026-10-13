@@ -1,4 +1,4 @@
-import type { ThemeMode } from "../types";
+import type { Accent, ThemeMode } from "../types";
 
 export function resolveDark(mode: ThemeMode): boolean {
   const prefersDark =
@@ -11,6 +11,16 @@ export function applyTheme(mode: ThemeMode): void {
   document.documentElement.classList.toggle("dark", resolveDark(mode));
   try {
     localStorage.setItem("fd-theme", mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Switches the accent scheme by setting `data-accent` on <html>. */
+export function applyAccent(accent: Accent): void {
+  document.documentElement.dataset.accent = accent;
+  try {
+    localStorage.setItem("fd-accent", accent);
   } catch {
     /* ignore */
   }

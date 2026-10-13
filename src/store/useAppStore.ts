@@ -4,7 +4,7 @@ import { defaultSettings, defaultState, defaultTimer, sanitizeState, todayKey, u
 import { broadcastState, loadState, onRemoteState, saveState } from "./persist";
 import { durationFor } from "../lib/timer";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
-import { applyTheme } from "../lib/theme";
+import { applyAccent, applyTheme } from "../lib/theme";
 
 export interface NewCountdown {
   title: string;
@@ -77,6 +77,7 @@ export const useAppStore = create<Store>((set, get) => ({
       timer: next.timer,
     });
     applyTheme(next.settings.theme);
+    applyAccent(next.settings.accent);
   },
 
   addTodo: (title, estimate, priority) => {
@@ -158,6 +159,7 @@ export const useAppStore = create<Store>((set, get) => ({
         : timer;
     set({ settings: next, timer: nextTimer });
     applyTheme(next.theme);
+    applyAccent(next.accent);
     if (patch.notify === true) void ensureNotificationPermission();
   },
 
@@ -267,6 +269,7 @@ export const useAppStore = create<Store>((set, get) => ({
   resetAll: () => {
     set({ ...defaultState, settings: { ...defaultSettings }, timer: { ...defaultTimer } });
     applyTheme(defaultSettings.theme);
+    applyAccent(defaultSettings.accent);
   },
 }));
 

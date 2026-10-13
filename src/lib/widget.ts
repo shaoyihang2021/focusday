@@ -1,4 +1,5 @@
 import { isTauri } from "./env";
+import type { Point } from "../types";
 
 const invoke = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> => {
   if (!isTauri()) return null;
@@ -56,9 +57,58 @@ export async function focusMainWindow(): Promise<void> {
   await invoke("focus_main_window");
 }
 
+/** Pushes the live countdown into the tray icon's tooltip. */
+export async function updateTrayTooltip(text: string): Promise<void> {
+  await invoke("update_tray_tooltip", { text });
+}
+
+/**
+ * Registers the global shortcut that toggles the main window.
+ * An empty accelerator unregisters it. Returns whether one is active.
+ */
+export async function setGlobalShortcut(accelerator: string): Promise<boolean> {
+  const active = await invoke<boolean>("set_global_shortcut", {
+    accelerator: accelerator.trim() === "" ? null : accelerator,
+  });
+  return active ?? false;
+}
+
 /** Fully exits the app, including the tray icon and widget window. */
 export async function quitApp(): Promise<void> {
   await invoke("quit_app");
+}
+
+/** Moves the widget window back to a saved logical position. */
+export async function restoreWidgetPosition(pos: Point): Promise<void> {
+  if (!isTauri()) return;
+  const [{ getCurrentWindow }, { LogicalPosition }] = await Promise.all([
+    import("@tauri-apps/api/window"),
+    import("@tauri-apps/api/dpi"),
+  ]);
+  try {
+    await getCurrentWindow().setPosition(new LogicalPosition(pos.x, pos.y));
+  } catch (err) {
+    console.warn("[focusday] failed to restore widget position", err);
+  }
+}
+
+/**
+ * Subscribes to widget window moves. Positions are reported in logical pixels
+ * so they can be restored correctly regardless of the monitor's scale factor.
+ */
+export async function onWidgetMoved(cb: (pos: Point) => void): Promise<() => void> {
+  if (!isTauri()) return () => undefined;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  try {
+    const win = getCurrentWindow();
+    return await win.onMoved(async ({ payload }) => {
+      const factor = await win.scaleFactor();
+      cb({ x: Math.round(payload.x / factor), y: Math.round(payload.y / factor) });
+    });
+  } catch (err) {
+    console.warn("[focusday] failed to watch widget moves", err);
+    return () => undefined;
+  }
 }
 
 /**

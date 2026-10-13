@@ -37,7 +37,7 @@ export default function PomodoroView() {
       <Card className="fd-pop flex flex-col items-center gap-7 px-8 py-9">
         <Segmented options={MODES} value={timer.mode} onChange={setMode} />
 
-        <Ring progress={progress} color={isBreak ? "#1fa2a6" : "var(--fd-brand)"}>
+        <Ring progress={progress}>
           <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
             {modeLabel(timer.mode)}
           </span>
@@ -63,11 +63,11 @@ export default function PomodoroView() {
             onClick={toggleRun}
             className={cn(
               "flex h-11 min-w-[136px] items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold text-white transition-all",
-              "bg-gradient-to-br from-[#ff7a5c] to-[#e23213] shadow-lg shadow-brand/30 hover:brightness-105 active:scale-[0.98]",
+              "fd-primary shadow-lg shadow-brand/30 hover:brightness-105 active:scale-[0.98]",
             )}
           >
             {timer.running ? <Pause size={18} /> : <Play size={18} />}
-            {timer.running ? "暂停" : "开始专注"}
+            {timer.running ? "暂停" : isBreak ? "开始休息" : "开始专注"}
           </button>
           <button
             type="button"

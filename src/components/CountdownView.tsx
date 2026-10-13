@@ -85,7 +85,7 @@ export default function CountdownView() {
           <button
             type="button"
             onClick={submit}
-            className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#ff7a5c] to-[#e23213] px-4 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98]"
+            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98]"
           >
             <Plus size={16} /> 添加
           </button>

@@ -5,6 +5,15 @@ export type TimerMode = "work" | "short" | "long";
 /** Preset sizes for the detached desktop widget window. */
 export type WidgetSize = "small" | "medium" | "large";
 
+/** Accent colour scheme applied across the whole UI. */
+export type Accent = "tomato" | "ocean" | "violet" | "forest" | "amber";
+
+/** Logical (DPI independent) screen position. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface Todo {
   id: string;
   title: string;
@@ -46,11 +55,23 @@ export interface Settings {
   /** Widget panel opacity, 0.4 – 1. */
   widgetOpacity: number;
   widgetSize: WidgetSize;
+  /** Lock the widget so it can no longer be dragged by accident. */
+  widgetLocked: boolean;
+  /** Last known widget position, restored on next launch. */
+  widgetPos: Point | null;
+  /** Show the live countdown in the tray tooltip. */
+  trayCountdown: boolean;
+  /**
+   * Global shortcut accelerator used to toggle the main window.
+   * An empty string disables the shortcut.
+   */
+  hotkey: string;
   /** Launch FocusDay automatically when Windows starts. */
   autoLaunch: boolean;
   /** Hide to the system tray instead of quitting when the window is closed. */
   closeToTray: boolean;
   theme: ThemeMode;
+  accent: Accent;
 }
 
 export interface TimerState {

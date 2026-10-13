@@ -24,10 +24,14 @@
   --fd-line: rgba(15, 23, 42, 0.09);
   --fd-ink: #0f172a;
   --fd-muted: #64748b;
+  color-scheme: light;
+
+  /* Default accent: tomato. Other accents override the five brand tokens. */
   --fd-brand: #f74a2c;
   --fd-brand-deep: #d8340f;
   --fd-brand-soft: rgba(247, 74, 44, 0.12);
-  color-scheme: light;
+  --fd-btn-from: #ff7a5c;
+  --fd-btn-to: #e23213;
 }
 
 .dark {
@@ -37,10 +41,71 @@
   --fd-line: rgba(255, 255, 255, 0.09);
   --fd-ink: #eaf0f8;
   --fd-muted: #93a0b4;
-  --fd-brand: #ff6a4d;
-  --fd-brand-deep: #ff8566;
-  --fd-brand-soft: rgba(255, 106, 77, 0.16);
   color-scheme: dark;
+
+  --fd-brand: #ff6a4d;
+  --fd-brand-deep: #ff9878;
+  --fd-brand-soft: rgba(255, 106, 77, 0.16);
+  --fd-btn-from: #ff7a5c;
+  --fd-btn-to: #e23213;
+}
+
+/* ---------------------------------------------------------------------------
+   Accent schemes. Each accent only overrides the five brand tokens so the rest
+   of the theme (surfaces, text, borders) stays untouched. `.dark[data-accent]`
+   is intentionally declared after `:root[data-accent]` so it wins in dark mode.
+   --------------------------------------------------------------------------- */
+
+:root[data-accent="ocean"] {
+  --fd-brand: #2563eb;
+  --fd-brand-deep: #1d4ed8;
+  --fd-brand-soft: rgba(37, 99, 235, 0.12);
+  --fd-btn-from: #4c8ef7;
+  --fd-btn-to: #1d5fd6;
+}
+.dark[data-accent="ocean"] {
+  --fd-brand: #6aa6ff;
+  --fd-brand-deep: #93c0ff;
+  --fd-brand-soft: rgba(106, 166, 255, 0.16);
+}
+
+:root[data-accent="violet"] {
+  --fd-brand: #7c3aed;
+  --fd-brand-deep: #6d28d9;
+  --fd-brand-soft: rgba(124, 58, 237, 0.12);
+  --fd-btn-from: #9d76f8;
+  --fd-btn-to: #7239e8;
+}
+.dark[data-accent="violet"] {
+  --fd-brand: #b18cff;
+  --fd-brand-deep: #c9aefd;
+  --fd-brand-soft: rgba(177, 140, 255, 0.18);
+}
+
+:root[data-accent="forest"] {
+  --fd-brand: #158f4a;
+  --fd-brand-deep: #11713b;
+  --fd-brand-soft: rgba(21, 143, 74, 0.12);
+  --fd-btn-from: #29b463;
+  --fd-btn-to: #12813c;
+}
+.dark[data-accent="forest"] {
+  --fd-brand: #4ade80;
+  --fd-brand-deep: #86efac;
+  --fd-brand-soft: rgba(74, 222, 128, 0.16);
+}
+
+:root[data-accent="amber"] {
+  --fd-brand: #b7791f;
+  --fd-brand-deep: #96610f;
+  --fd-brand-soft: rgba(183, 121, 31, 0.14);
+  --fd-btn-from: #cf7f14;
+  --fd-btn-to: #9a5c00;
+}
+.dark[data-accent="amber"] {
+  --fd-brand: #f2b73f;
+  --fd-brand-deep: #f8d07a;
+  --fd-brand-soft: rgba(242, 183, 63, 0.18);
 }
 
 html,
@@ -90,6 +155,16 @@ body.fd-widget {
   background-color: var(--fd-card);
   backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--fd-line);
+}
+
+/**
+ * Gradient used by every primary action button. Kept as a theme-agnostic
+ * gradient so white labels stay readable in both light and dark mode and the
+ * whole button follows the selected accent.
+ */
+@utility fd-primary {
+  background-image: linear-gradient(to bottom right, var(--fd-btn-from), var(--fd-btn-to));
+  color: #ffffff;
 }
 
 @utility no-drag {

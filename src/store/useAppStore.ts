@@ -1,11 +1,22 @@
 import { create } from "zustand";
-import type { AppState, Countdown, Settings, SubStep, Tag, ThemeMode, TimerMode, Todo } from "../types";
+import type {
+  AppState,
+  Countdown,
+  RepeatMode,
+  Settings,
+  SubStep,
+  Tag,
+  ThemeMode,
+  TimerMode,
+  Todo,
+} from "../types";
 import {
   TAG_COLORS,
   defaultSettings,
   defaultState,
   defaultTags,
   defaultTimer,
+  rolloverRepeats,
   sanitizeState,
   uid,
 } from "./defaults";
@@ -28,7 +39,13 @@ interface Actions {
   /** Replaces the whole data slice (used on boot and on cross-window sync). */
   hydrate: (next: AppState) => void;
 
-  addTodo: (title: string, estimate: number, priority: Todo["priority"], tagIds?: string[]) => void;
+  addTodo: (
+    title: string,
+    estimate: number,
+    priority: Todo["priority"],
+    tagIds?: string[],
+    repeat?: RepeatMode,
+  ) => void;
   updateTodo: (id: string, patch: Partial<Omit<Todo, "id">>) => void;
   toggleTodo: (id: string) => void;
   removeTodo: (id: string) => void;
@@ -44,6 +61,11 @@ interface Actions {
   addStep: (todoId: string, title: string) => void;
   toggleStep: (todoId: string, stepId: string) => void;
   removeStep: (todoId: string, stepId: string) => void;
+  /** Moves a step to a new index (drag and drop reordering). */
+  moveStep: (todoId: string, from: number, to: number) => void;
+
+  /** Reopens repeating tasks that were completed on an earlier day. */
+  rolloverRepeats: () => void;
 
   addCountdown: (input: NewCountdown) => void;
   updateCountdown: (id: string, patch: Partial<Omit<Countdown, "id">>) => void;
@@ -103,7 +125,7 @@ export const useAppStore = create<Store>((set, get) => ({
     applyAccent(next.settings.accent);
   },
 
-  addTodo: (title, estimate, priority, tagIds = []) => {
+  addTodo: (title, estimate, priority, tagIds = [], repeat = "none") => {
     const trimmed = title.trim();
     if (!trimmed) return;
     const todo: Todo = {
@@ -115,6 +137,7 @@ export const useAppStore = create<Store>((set, get) => ({
       priority,
       tags: [...tagIds],
       steps: [],
+      repeat,
       createdAt: Date.now(),
     };
     set((s) => ({ todos: [todo, ...s.todos] }));
@@ -175,6 +198,26 @@ export const useAppStore = create<Store>((set, get) => ({
         t.id === todoId ? { ...t, steps: t.steps.filter((step) => step.id !== stepId) } : t,
       ),
     })),
+
+  moveStep: (todoId, from, to) =>
+    set((s) => ({
+      todos: s.todos.map((t) => {
+        if (t.id !== todoId) return t;
+        if (from === to || from < 0 || to < 0 || from >= t.steps.length || to >= t.steps.length) {
+          return t;
+        }
+        const steps = [...t.steps];
+        const [moved] = steps.splice(from, 1);
+        steps.splice(to, 0, moved);
+        return { ...t, steps };
+      }),
+    })),
+
+  rolloverRepeats: () => {
+    const { todos } = get();
+    const next = rolloverRepeats(todos);
+    if (next.some((todo, i) => todo !== todos[i])) set({ todos: next });
+  },
 
   toggleTodo: (id) =>
     set((s) => ({
@@ -386,9 +429,18 @@ export async function initStore(): Promise<void> {
  * window owns session completion (notifications, counters).
  */
 export function startEngine(): () => void {
+  let lastDay = todayISO();
+
   const id = window.setInterval(() => {
-    const { timer, completeSession } = useAppStore.getState();
+    const { timer, completeSession, rolloverRepeats } = useAppStore.getState();
     if (timer.running && timer.endAt && Date.now() >= timer.endAt) completeSession();
+
+    // Reopen daily repeating tasks when the app is left running overnight.
+    const day = todayISO();
+    if (day !== lastDay) {
+      lastDay = day;
+      rolloverRepeats();
+    }
   }, 500);
   return () => window.clearInterval(id);
 }

@@ -82,8 +82,10 @@ const SKINS: { value: WidgetSkin; label: string }[] = [
 const NOISES: { value: NoiseType; label: string }[] = [
   { value: "off", label: "关闭" },
   { value: "white", label: "白噪音" },
-  { value: "pink", label: "粉红噪音" },
-  { value: "brown", label: "棕噪音" },
+  { value: "pink", label: "粉红" },
+  { value: "brown", label: "棕" },
+  { value: "rain", label: "雨声" },
+  { value: "cafe", label: "咖啡厅" },
 ];
 
 const HOTKEYS: { value: string; label: string }[] = [
@@ -220,7 +222,14 @@ export default function SettingsView() {
       </Section>
 
       <Section icon={<Waves size={16} />} title="白噪音">
-        <Row label="声音类型" hint="计时开始时自动播放，暂停或结束时自动停止">
+        <Row
+          label="声音类型"
+          hint={
+            settings.noise === "rain" || settings.noise === "cafe"
+              ? "计时开始时自动播放；雨声与咖啡厅为实时合成的近似音效，非实录"
+              : "计时开始时自动播放，暂停或结束时自动停止"
+          }
+        >
           <Segmented options={NOISES} value={settings.noise} onChange={(v) => updateSettings({ noise: v })} />
         </Row>
         <Row label="音量" hint={`当前 ${Math.round(settings.noiseVolume * 100)}%`}>
@@ -472,7 +481,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.5.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.6.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

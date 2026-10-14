@@ -12,7 +12,10 @@ export type Accent = "tomato" | "ocean" | "violet" | "forest" | "amber";
 export type WidgetSkin = "glass" | "solid" | "outline" | "ghost";
 
 /** Ambient noise played while the timer runs. */
-export type NoiseType = "off" | "white" | "pink" | "brown";
+export type NoiseType = "off" | "white" | "pink" | "brown" | "rain" | "cafe";
+
+/** How often a todo repeats after being completed. */
+export type RepeatMode = "none" | "daily";
 
 /** Logical (DPI independent) screen position. */
 export interface Point {
@@ -69,6 +72,8 @@ export interface Todo {
   tags: string[];
   /** Optional checklist breaking the task into smaller steps. */
   steps: SubStep[];
+  /** Whether the task reopens automatically on the next day. */
+  repeat: RepeatMode;
   createdAt: number;
   doneAt?: number;
 }

@@ -8,6 +8,7 @@ import type {
   SubStep,
   Tag,
   TimerState,
+  Todo,
   WidgetContent,
   WidgetSize,
 } from "../types";
@@ -44,7 +45,7 @@ export const defaultSettings: Settings = {
 export const ACCENTS: Accent[] = ["tomato", "ocean", "violet", "forest", "amber"];
 
 export const WIDGET_SKINS = ["glass", "solid", "outline", "ghost"] as const;
-export const NOISE_TYPES = ["off", "white", "pink", "brown"] as const;
+export const NOISE_TYPES = ["off", "white", "pink", "brown", "rain", "cafe"] as const;
 
 /** Palette offered when creating a tag, cycled by index. */
 export const TAG_COLORS = [
@@ -141,6 +142,28 @@ function sanitizeWidgetShow(value: unknown): WidgetContent {
   };
 }
 
+/** Epoch ms of the start of the current local day. */
+export const startOfTodayMs = (): number => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+
+/**
+ * Reopens repeating tasks that were finished on an earlier day, so a daily
+ * habit shows up fresh again. Idempotent — safe to run on every load.
+ */
+export function rolloverRepeats(todos: Todo[]): Todo[] {
+  const start = startOfTodayMs();
+  return todos.map((todo) =>
+    todo.repeat === "daily" &&
+    todo.done &&
+    typeof todo.doneAt === "number" &&
+    todo.doneAt < start
+      ? { ...todo, done: false, completed: 0, doneAt: undefined }
+      : todo,
+  );
+}
+
 /** Keeps only well-formed `YYYY-MM-DD` -> { minutes, count } entries. */
 function sanitizeFocusByDay(value: unknown): FocusByDay {
   if (!value || typeof value !== "object") return {};
@@ -167,12 +190,15 @@ export function sanitizeState(input: unknown): AppState {
   const tags = Array.isArray(raw.tags) ? raw.tags.filter(isTag) : defaultTags;
   const knownTagIds = new Set(tags.map((t) => t.id));
 
-  const todos = (Array.isArray(raw.todos) ? raw.todos : []).map((todo) => ({
-    ...todo,
-    // Drop references to tags the user deleted.
-    tags: Array.isArray(todo.tags) ? todo.tags.filter((id) => knownTagIds.has(id)) : [],
-    steps: sanitizeSteps(todo.steps),
-  }));
+  const todos = rolloverRepeats(
+    (Array.isArray(raw.todos) ? raw.todos : []).map((todo) => ({
+      ...todo,
+      // Drop references to tags the user deleted.
+      tags: Array.isArray(todo.tags) ? todo.tags.filter((id) => knownTagIds.has(id)) : [],
+      steps: sanitizeSteps(todo.steps),
+      repeat: todo.repeat === "daily" ? ("daily" as const) : ("none" as const),
+    })),
+  );
 
   const focusByDay = sanitizeFocusByDay(raw.focusByDay);
 

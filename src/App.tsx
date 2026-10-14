@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PanelTop, PanelTopClose } from "lucide-react";
 import { Sidebar } from "./components/Sidebar";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -25,7 +25,14 @@ export default function App() {
   const [widgetOn, setWidgetOn] = useState(false);
   const theme = useAppStore((s) => s.settings.theme);
   const setTheme = useAppStore((s) => s.setTheme);
+  const contentRef = useRef<HTMLDivElement>(null);
   const tauri = isTauri();
+
+  // Switching views should start at the top rather than keep the previous
+  // scroll offset, which could hide headings and toolbars.
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [view]);
 
   const toggleWidget = () => {
     const next = !widgetOn;
@@ -65,7 +72,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div ref={contentRef} className="flex-1 overflow-y-auto px-6 py-6">
           {view === "pomodoro" && <PomodoroView />}
           {view === "todos" && <TodoView />}
           {view === "countdowns" && <CountdownView />}

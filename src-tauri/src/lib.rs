@@ -172,6 +172,16 @@ fn read_backup(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Writes a base64 encoded PNG (used by the stats share card export).
+#[tauri::command]
+fn write_png(path: String, base64: String) -> Result<(), String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())
+}
+
 /// Fully exits the app, closing tray and widget windows as well.
 #[tauri::command]
 fn quit_app(app: AppHandle) {
@@ -249,6 +259,7 @@ pub fn run() {
             set_global_shortcut,
             write_backup,
             read_backup,
+            write_png,
             quit_app
         ])
         .setup(|app| {

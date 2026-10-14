@@ -4,9 +4,11 @@ import {
   ChevronDown,
   ChevronRight,
   Flag,
+  GripVertical,
   ListChecks,
   ListTodo,
   Plus,
+  Repeat,
   Tag as TagIcon,
   Target,
   Trash2,
@@ -15,7 +17,7 @@ import {
 import { useAppStore } from "../store/useAppStore";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
-import type { Tag, Todo } from "../types";
+import type { RepeatMode, Tag, Todo } from "../types";
 
 type Filter = "all" | "open" | "done";
 
@@ -103,6 +105,7 @@ export default function TodoView() {
   const addStep = useAppStore((s) => s.addStep);
   const toggleStep = useAppStore((s) => s.toggleStep);
   const removeStep = useAppStore((s) => s.removeStep);
+  const moveStep = useAppStore((s) => s.moveStep);
 
   const [title, setTitle] = useState("");
   const [estimate, setEstimate] = useState(1);
@@ -111,11 +114,19 @@ export default function TodoView() {
   const [draftTags, setDraftTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [repeat, setRepeat] = useState<RepeatMode>("none");
   const [expanded, setExpanded] = useState<string[]>([]);
   const [stepDraft, setStepDraft] = useState<Record<string, string>>({});
+  const [dragStep, setDragStep] = useState<{ todoId: string; index: number } | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   const toggleExpanded = (id: string) =>
     setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const endStepDrag = () => {
+    setDragStep(null);
+    setDropIndex(null);
+  };
 
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
@@ -145,11 +156,12 @@ export default function TodoView() {
 
   const submit = () => {
     if (!title.trim()) return;
-    addTodo(title, estimate, Number(priority) as Todo["priority"], draftTags);
+    addTodo(title, estimate, Number(priority) as Todo["priority"], draftTags, repeat);
     setTitle("");
     setEstimate(1);
     setPriority("1");
     setDraftTags([]);
+    setRepeat("none");
     setFilter((f) => (f === "done" ? "open" : f));
   };
 
@@ -197,6 +209,20 @@ export default function TodoView() {
               <span className="px-1 text-[11px] text-muted">🍅</span>
             </div>
             <Segmented options={PRIORITIES} value={priority} onChange={setPriority} />
+            <button
+              type="button"
+              onClick={() => setRepeat((r) => (r === "daily" ? "none" : "daily"))}
+              title={repeat === "daily" ? "每日重复：已开启（完成后次日自动重置）" : "设为每日重复"}
+              aria-pressed={repeat === "daily"}
+              className={cn(
+                "grid h-10 w-10 shrink-0 place-items-center rounded-xl border transition-colors",
+                repeat === "daily"
+                  ? "border-transparent bg-brand text-white"
+                  : "border-line bg-card text-muted hover:text-ink",
+              )}
+            >
+              <Repeat size={16} />
+            </button>
             <button
               type="button"
               onClick={submit}
@@ -371,6 +397,12 @@ export default function TodoView() {
                           {allStepsDone ? "子步骤已完成" : `步骤 ${doneSteps}/${totalSteps}`}
                         </span>
                       ) : null}
+                      {todo.repeat === "daily" ? (
+                        <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-brand">
+                          <Repeat size={10} />
+                          每日
+                        </span>
+                      ) : null}
                       {activeId === todo.id && !todo.done ? (
                         <span className="text-[11px] font-medium text-brand">专注中</span>
                       ) : null}
@@ -424,38 +456,76 @@ export default function TodoView() {
                       </p>
                     ) : null}
 
-                    {todo.steps.map((step) => (
-                      <div key={step.id} className="group/step flex items-center gap-2.5 py-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleStep(todo.id, step.id)}
+                    {todo.steps.length > 1 ? (
+                      <p className="mb-1 text-[11px] text-muted">拖动左侧手柄可调整顺序</p>
+                    ) : null}
+
+                    {todo.steps.map((step, index) => {
+                      const isDragging =
+                        dragStep?.todoId === todo.id && dragStep.index === index;
+                      const isDropTarget =
+                        dropIndex === index && dragStep?.todoId === todo.id && !isDragging;
+                      return (
+                        <div
+                          key={step.id}
+                          draggable
+                          onDragStart={() => setDragStep({ todoId: todo.id, index })}
+                          onDragEnd={endStepDrag}
+                          onDragOver={(e) => {
+                            if (dragStep?.todoId !== todo.id) return;
+                            e.preventDefault();
+                            setDropIndex(index);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dragStep?.todoId === todo.id) {
+                              moveStep(todo.id, dragStep.index, index);
+                            }
+                            endStepDrag();
+                          }}
                           className={cn(
-                            "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all",
-                            step.done
-                              ? "border-transparent bg-brand text-white"
-                              : "border-black/20 text-transparent hover:border-brand dark:border-white/25",
+                            "group/step flex items-center gap-2.5 rounded-lg py-1 transition-colors",
+                            isDragging && "opacity-40",
+                            isDropTarget && "bg-brand-soft ring-1 ring-brand/50",
                           )}
                         >
-                          <Check size={9} strokeWidth={3.5} />
-                        </button>
-                        <span
-                          className={cn(
-                            "min-w-0 flex-1 truncate text-xs",
-                            step.done ? "text-muted line-through" : "text-ink",
-                          )}
-                        >
-                          {step.title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeStep(todo.id, step.id)}
-                          title="删除子步骤"
-                          className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 hover:text-rose-500"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
+                          <span
+                            title="拖动排序"
+                            className="cursor-grab text-muted/50 transition-colors group-hover/step:text-muted active:cursor-grabbing"
+                          >
+                            <GripVertical size={13} />
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleStep(todo.id, step.id)}
+                            className={cn(
+                              "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all",
+                              step.done
+                                ? "border-transparent bg-brand text-white"
+                                : "border-black/20 text-transparent hover:border-brand dark:border-white/25",
+                            )}
+                          >
+                            <Check size={9} strokeWidth={3.5} />
+                          </button>
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1 truncate text-xs",
+                              step.done ? "text-muted line-through" : "text-ink",
+                            )}
+                          >
+                            {step.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeStep(todo.id, step.id)}
+                            title="删除子步骤"
+                            className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 hover:text-rose-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      );
+                    })}
 
                     <div className="flex items-center gap-2 pt-1.5">
                       <input

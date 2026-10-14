@@ -25,7 +25,7 @@ import {
 } from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
 import { isTauri } from "../lib/env";
-import { todayISO } from "../lib/date";
+import { formatDate, todayISO } from "../lib/date";
 import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -234,6 +234,28 @@ export default function SettingsView() {
             className="w-40"
           />
         </Row>
+        <Row label="音色亮度" hint={settings.noiseTone < 0.3 ? "低沉、闷" : settings.noiseTone > 0.8 ? "明亮、通透" : "均衡"}>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={2}
+            value={Math.round(settings.noiseTone * 100)}
+            onChange={(e) => updateSettings({ noiseTone: Number(e.target.value) / 100 })}
+            className="w-40"
+          />
+        </Row>
+        <Row label="低频厚度" hint={`低架增益 ${settings.noiseBass > 0 ? "+" : ""}${settings.noiseBass} dB`}>
+          <input
+            type="range"
+            min={-12}
+            max={12}
+            step={1}
+            value={settings.noiseBass}
+            onChange={(e) => updateSettings({ noiseBass: Number(e.target.value) })}
+            className="w-40"
+          />
+        </Row>
       </Section>
 
       <Section icon={<Keyboard size={16} />} title="全局快捷键">
@@ -360,6 +382,36 @@ export default function SettingsView() {
             onChange={(skin) => updateSettings({ widgetSkin: skin })}
           />
         </Row>
+        <div className="py-2">
+          <p className="mb-1 text-sm font-medium text-ink">显示内容</p>
+          <p className="mb-1 text-xs text-muted">选择小组件上要显示的信息</p>
+          <div className="divide-y divide-line">
+            <Toggle
+              checked={settings.widgetShow.ring}
+              onChange={(v) => updateSettings({ widgetShow: { ...settings.widgetShow, ring: v } })}
+              label="环形进度"
+              hint="关闭后以大字显示剩余时间"
+            />
+            <Toggle
+              checked={settings.widgetShow.today}
+              onChange={(v) => updateSettings({ widgetShow: { ...settings.widgetShow, today: v } })}
+              label="今日番茄数"
+            />
+            <Toggle
+              checked={settings.widgetShow.countdown}
+              onChange={(v) =>
+                updateSettings({ widgetShow: { ...settings.widgetShow, countdown: v } })
+              }
+              label="倒数日"
+              hint="显示置顶或最近的一个倒数事件"
+            />
+            <Toggle
+              checked={settings.widgetShow.todo}
+              onChange={(v) => updateSettings({ widgetShow: { ...settings.widgetShow, todo: v } })}
+              label="下一条待办"
+            />
+          </div>
+        </div>
         <Toggle
           checked={settings.widgetLocked}
           onChange={(v) => updateSettings({ widgetLocked: v })}
@@ -420,7 +472,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.4.0 · 番茄工作法 + 待办清单 + 倒数日 · {todayISO()}
+        FocusDay v0.5.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

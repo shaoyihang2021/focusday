@@ -25,11 +25,24 @@ export const todayISO = (): string => dateKey();
 /** `周一` … `周日` for a `YYYY-MM-DD` string. */
 export const weekdayName = (dateStr: string): string => WEEKDAYS[parseDay(dateStr).getDay()];
 
-/** Short `M/D` label used on chart axes. */
+/** `2026年10月13日` — the display format used throughout the Chinese UI. */
+export const formatDate = (dateStr: string): string => {
+  const d = parseDay(dateStr);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+};
+
+/** `2026年10月13日 周二` — used where the weekday adds useful context. */
+export const formatDateWithWeekday = (dateStr: string): string =>
+  `${formatDate(dateStr)} ${weekdayName(dateStr)}`;
+
+/** `10月13日` — compact label for chart axes. */
 export const shortDate = (dateStr: string): string => {
   const d = parseDay(dateStr);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
+
+/** `2026年10月` — month heading for the heatmap. */
+export const formatMonth = (year: number, month: number): string => `${year}年${month}月`;
 
 /**
  * Number of days until the target date. Non-repeating events in the past keep
@@ -63,8 +76,3 @@ export function countdownInfo(
     weekday: WEEKDAYS[target.getDay()],
   };
 }
-
-export const formatDate = (dateStr: string): string => {
-  const d = parseDay(dateStr);
-  return `${d.getFullYear()}/${`${d.getMonth() + 1}`.padStart(2, "0")}/${`${d.getDate()}`.padStart(2, "0")}`;
-};

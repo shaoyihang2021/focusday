@@ -39,7 +39,7 @@ async function bootstrap(): Promise<void> {
     // means a start triggered in the widget window also starts the audio here.
     const syncFromStore = () => {
       const { timer: t, settings: s } = useAppStore.getState();
-      syncNoise(t.running, s.noise, s.noiseVolume);
+      syncNoise(t.running, s.noise, s.noiseVolume, s.noiseTone, s.noiseBass);
     };
     syncFromStore();
     useAppStore.subscribe(syncFromStore);

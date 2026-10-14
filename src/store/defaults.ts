@@ -5,8 +5,10 @@ import type {
   FocusByDay,
   Point,
   Settings,
+  SubStep,
   Tag,
   TimerState,
+  WidgetContent,
   WidgetSize,
 } from "../types";
 
@@ -24,10 +26,13 @@ export const defaultSettings: Settings = {
   widgetOpacity: 0.92,
   widgetSize: "medium",
   widgetSkin: "glass",
+  widgetShow: { ring: true, today: true, countdown: true, todo: true },
   widgetLocked: false,
   widgetPos: null,
   noise: "off",
   noiseVolume: 0.3,
+  noiseTone: 0.72,
+  noiseBass: 0,
   trayCountdown: true,
   hotkey: "",
   autoLaunch: false,
@@ -110,6 +115,32 @@ const isTag = (value: unknown): value is Tag => {
   );
 };
 
+const isSubStep = (value: unknown): value is SubStep => {
+  if (!value || typeof value !== "object") return false;
+  const s = value as Partial<SubStep>;
+  return typeof s.id === "string" && s.id !== "" && typeof s.title === "string";
+};
+
+/** Keeps only well-formed checklist items, defaulting `done` to false. */
+function sanitizeSteps(value: unknown): SubStep[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isSubStep).map((step) => ({
+    id: step.id,
+    title: step.title,
+    done: asBool(step.done, false),
+  }));
+}
+
+function sanitizeWidgetShow(value: unknown): WidgetContent {
+  const raw = (value ?? {}) as Partial<WidgetContent>;
+  return {
+    ring: asBool(raw.ring, defaultSettings.widgetShow.ring),
+    today: asBool(raw.today, defaultSettings.widgetShow.today),
+    countdown: asBool(raw.countdown, defaultSettings.widgetShow.countdown),
+    todo: asBool(raw.todo, defaultSettings.widgetShow.todo),
+  };
+}
+
 /** Keeps only well-formed `YYYY-MM-DD` -> { minutes, count } entries. */
 function sanitizeFocusByDay(value: unknown): FocusByDay {
   if (!value || typeof value !== "object") return {};
@@ -140,6 +171,7 @@ export function sanitizeState(input: unknown): AppState {
     ...todo,
     // Drop references to tags the user deleted.
     tags: Array.isArray(todo.tags) ? todo.tags.filter((id) => knownTagIds.has(id)) : [],
+    steps: sanitizeSteps(todo.steps),
   }));
 
   const focusByDay = sanitizeFocusByDay(raw.focusByDay);
@@ -178,12 +210,15 @@ export function sanitizeState(input: unknown): AppState {
       widgetSkin: WIDGET_SKINS.includes(settings.widgetSkin as never)
         ? (settings.widgetSkin as Settings["widgetSkin"])
         : defaultSettings.widgetSkin,
+      widgetShow: sanitizeWidgetShow(settings.widgetShow),
       widgetLocked: asBool(settings.widgetLocked, defaultSettings.widgetLocked),
       widgetPos: asPoint(settings.widgetPos),
       noise: NOISE_TYPES.includes(settings.noise as never)
         ? (settings.noise as Settings["noise"])
         : defaultSettings.noise,
       noiseVolume: Math.min(1, Math.max(0, asNumber(settings.noiseVolume, defaultSettings.noiseVolume))),
+      noiseTone: Math.min(1, Math.max(0, asNumber(settings.noiseTone, defaultSettings.noiseTone))),
+      noiseBass: Math.min(12, Math.max(-12, asNumber(settings.noiseBass, defaultSettings.noiseBass))),
       trayCountdown: asBool(settings.trayCountdown, defaultSettings.trayCountdown),
       hotkey: typeof settings.hotkey === "string" ? settings.hotkey : defaultSettings.hotkey,
       autoLaunch: asBool(settings.autoLaunch, defaultSettings.autoLaunch),

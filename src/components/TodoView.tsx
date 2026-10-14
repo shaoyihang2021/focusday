@@ -1,5 +1,17 @@
 import { useMemo, useState } from "react";
-import { Check, Flag, ListTodo, Plus, Tag as TagIcon, Target, Trash2, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Flag,
+  ListChecks,
+  ListTodo,
+  Plus,
+  Tag as TagIcon,
+  Target,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
@@ -88,6 +100,9 @@ export default function TodoView() {
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
   const addTag = useAppStore((s) => s.addTag);
   const removeTag = useAppStore((s) => s.removeTag);
+  const addStep = useAppStore((s) => s.addStep);
+  const toggleStep = useAppStore((s) => s.toggleStep);
+  const removeStep = useAppStore((s) => s.removeStep);
 
   const [title, setTitle] = useState("");
   const [estimate, setEstimate] = useState(1);
@@ -96,6 +111,11 @@ export default function TodoView() {
   const [draftTags, setDraftTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [stepDraft, setStepDraft] = useState<Record<string, string>>({});
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
@@ -180,7 +200,8 @@ export default function TodoView() {
             <button
               type="button"
               onClick={submit}
-              className="fd-primary flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98]"
+              disabled={!title.trim()}
+              className="fd-primary flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
             >
               <Plus size={16} /> 添加
             </button>
@@ -275,91 +296,192 @@ export default function TodoView() {
             hint="添加一个任务，然后回到番茄钟开始专注。完成的番茄会累积在任务上。"
           />
         ) : (
-          visible.map((todo) => (
-            <div
-              key={todo.id}
-              className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
-            >
-              <button
-                type="button"
-                onClick={() => toggleTodo(todo.id)}
-                className={cn(
-                  "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all",
-                  todo.done
-                    ? "border-transparent bg-brand text-white"
-                    : "border-black/20 text-transparent hover:border-brand dark:border-white/25",
-                )}
-              >
-                <Check size={12} strokeWidth={3} />
-              </button>
-
-              <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    "truncate text-sm",
-                    todo.done ? "text-muted line-through" : "text-ink",
-                  )}
-                >
-                  {todo.title}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <span
+          visible.map((todo) => {
+            const isOpen = expanded.includes(todo.id);
+            const doneSteps = todo.steps.filter((step) => step.done).length;
+            const totalSteps = todo.steps.length;
+            const allStepsDone = totalSteps > 0 && doneSteps === totalSteps;
+            return (
+              <div key={todo.id} className="group">
+                <div className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(todo.id)}
+                    title={totalSteps > 0 ? (isOpen ? "收起子步骤" : "展开子步骤") : "拆分任务为子步骤"}
                     className={cn(
-                      "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-                      priorityTone(todo.priority),
+                      "grid h-5 w-5 shrink-0 place-items-center rounded-md transition-colors",
+                      totalSteps > 0
+                        ? "text-muted hover:text-brand"
+                        : "text-muted opacity-0 group-hover:opacity-100 hover:text-brand",
                     )}
                   >
-                    <Flag size={10} />
-                    {todo.priority === 2 ? "高" : todo.priority === 1 ? "中" : "低"}
-                  </span>
-                  <span className="text-[11px] tabular-nums text-muted">
-                    {todo.completed}/{todo.estimate} 🍅
-                  </span>
-                  {activeId === todo.id && !todo.done ? (
-                    <span className="text-[11px] font-medium text-brand">专注中</span>
+                    {totalSteps > 0 ? (
+                      isOpen ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ChevronRight size={14} />
+                      )
+                    ) : (
+                      <ListChecks size={14} />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleTodo(todo.id)}
+                    className={cn(
+                      "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all",
+                      todo.done
+                        ? "border-transparent bg-brand text-white"
+                        : "border-black/20 text-transparent hover:border-brand dark:border-white/25",
+                    )}
+                  >
+                    <Check size={12} strokeWidth={3} />
+                  </button>
+
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "truncate text-sm",
+                        todo.done ? "text-muted line-through" : "text-ink",
+                      )}
+                    >
+                      {todo.title}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+                          priorityTone(todo.priority),
+                        )}
+                      >
+                        <Flag size={10} />
+                        {todo.priority === 2 ? "高" : todo.priority === 1 ? "中" : "低"}
+                      </span>
+                      <span className="text-[11px] tabular-nums text-muted">
+                        {todo.completed}/{todo.estimate} 🍅
+                      </span>
+                      {totalSteps > 0 ? (
+                        <span
+                          className={cn(
+                            "text-[11px] tabular-nums",
+                            allStepsDone ? "font-medium text-brand" : "text-muted",
+                          )}
+                        >
+                          {allStepsDone ? "子步骤已完成" : `步骤 ${doneSteps}/${totalSteps}`}
+                        </span>
+                      ) : null}
+                      {activeId === todo.id && !todo.done ? (
+                        <span className="text-[11px] font-medium text-brand">专注中</span>
+                      ) : null}
+                      {todo.tags.map((id) => {
+                        const tag = tagById.get(id);
+                        if (!tag) return null;
+                        return (
+                          <TagChip
+                            key={id}
+                            tag={tag}
+                            compact
+                            active={tagFilter.includes(id)}
+                            onClick={() => toggleTagFilter(id)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {!todo.done ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTodo(activeId === todo.id ? null : todo.id)}
+                      title="设为当前专注任务"
+                      className={cn(
+                        "grid h-8 w-8 place-items-center rounded-lg border transition-colors",
+                        activeId === todo.id
+                          ? "border-transparent bg-brand text-white"
+                          : "border-line text-muted opacity-0 group-hover:opacity-100 hover:text-brand",
+                      )}
+                    >
+                      <Target size={15} />
+                    </button>
                   ) : null}
-                  {todo.tags.map((id) => {
-                    const tag = tagById.get(id);
-                    if (!tag) return null;
-                    return (
-                      <TagChip
-                        key={id}
-                        tag={tag}
-                        compact
-                        active={tagFilter.includes(id)}
-                        onClick={() => toggleTagFilter(id)}
-                      />
-                    );
-                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => removeTodo(todo.id)}
+                    title="删除"
+                    className="grid h-8 w-8 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
+
+                {isOpen ? (
+                  <div className="border-t border-line bg-black/[0.015] py-2.5 pr-4 pl-12 dark:bg-white/[0.02]">
+                    {todo.steps.length === 0 ? (
+                      <p className="mb-1.5 text-[11px] text-muted">
+                        把任务拆成几个小步骤，更容易开始。
+                      </p>
+                    ) : null}
+
+                    {todo.steps.map((step) => (
+                      <div key={step.id} className="group/step flex items-center gap-2.5 py-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleStep(todo.id, step.id)}
+                          className={cn(
+                            "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all",
+                            step.done
+                              ? "border-transparent bg-brand text-white"
+                              : "border-black/20 text-transparent hover:border-brand dark:border-white/25",
+                          )}
+                        >
+                          <Check size={9} strokeWidth={3.5} />
+                        </button>
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate text-xs",
+                            step.done ? "text-muted line-through" : "text-ink",
+                          )}
+                        >
+                          {step.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeStep(todo.id, step.id)}
+                          title="删除子步骤"
+                          className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 hover:text-rose-500"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <div className="flex items-center gap-2 pt-1.5">
+                      <input
+                        value={stepDraft[todo.id] ?? ""}
+                        onChange={(e) =>
+                          setStepDraft((prev) => ({ ...prev, [todo.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter") return;
+                          addStep(todo.id, stepDraft[todo.id] ?? "");
+                          setStepDraft((prev) => ({ ...prev, [todo.id]: "" }));
+                        }}
+                        placeholder="+ 添加子步骤，回车确认"
+                        className="w-full max-w-xs rounded-lg border border-dashed border-line bg-transparent px-2 py-1 text-xs text-ink outline-none placeholder:text-muted focus:border-brand"
+                      />
+                      {totalSteps > 0 ? (
+                        <span className="ml-auto text-[11px] tabular-nums text-muted">
+                          {doneSteps}/{totalSteps}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-
-              {!todo.done ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveTodo(activeId === todo.id ? null : todo.id)}
-                  title="设为当前专注任务"
-                  className={cn(
-                    "grid h-8 w-8 place-items-center rounded-lg border transition-colors",
-                    activeId === todo.id
-                      ? "border-transparent bg-brand text-white"
-                      : "border-line text-muted opacity-0 group-hover:opacity-100 hover:text-brand",
-                  )}
-                >
-                  <Target size={15} />
-                </button>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => removeTodo(todo.id)}
-                title="删除"
-                className="grid h-8 w-8 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))
+            );
+          })
         )}
       </Card>
     </div>

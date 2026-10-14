@@ -1,12 +1,40 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
-import { ChartColumn, Flame, Target, Timer as TimerIcon, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  ChartColumn,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  Target,
+  Timer as TimerIcon,
+  TrendingUp,
+} from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { lastDays, streakDays, todayStat, totals } from "../lib/stats";
-import { shortDate, todayISO, weekdayName } from "../lib/date";
+import { lastDays, monthGrid, monthPeak, streakDays, todayStat, totals } from "../lib/stats";
+import { formatDate, formatMonth, parseDay, shortDate, todayISO, weekdayName } from "../lib/date";
 import { humanizeMinutes } from "../lib/timer";
 import { Card, EmptyState } from "./ui";
 import { cn } from "../lib/cn";
+
+const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
+
+/** Heat levels: 0 = none, then four steps scaled against the month's peak. */
+function heatLevel(minutes: number, peak: number): number {
+  if (minutes <= 0 || peak <= 0) return 0;
+  const ratio = minutes / peak;
+  if (ratio <= 0.25) return 1;
+  if (ratio <= 0.5) return 2;
+  if (ratio <= 0.75) return 3;
+  return 4;
+}
+
+const HEAT_CLASS = [
+  "bg-black/[0.05] dark:bg-white/[0.06]",
+  "bg-brand/25",
+  "bg-brand/45",
+  "bg-brand/70",
+  "bg-brand",
+];
 
 function Metric({
   icon,
@@ -47,6 +75,23 @@ export default function StatsView() {
   const weekCount = week.reduce((sum, day) => sum + day.stat.count, 0);
   const peak = Math.max(...week.map((day) => day.stat.minutes));
   const activeDays = week.filter((day) => day.stat.count > 0).length;
+
+  // Month shown in the heatmap, as an offset in months from the current one.
+  const [monthOffset, setMonthOffset] = useState(0);
+  const shown = useMemo(() => {
+    const base = new Date();
+    const d = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }, [monthOffset]);
+  const grid = useMemo(
+    () => monthGrid(focusByDay, shown.year, shown.month),
+    [focusByDay, shown.year, shown.month],
+  );
+  const gridPeak = monthPeak(grid);
+  const monthTotal = grid
+    .flat()
+    .filter((cell) => cell.inMonth)
+    .reduce((sum, cell) => sum + cell.stat.minutes, 0);
 
   if (total.count === 0) {
     return (
@@ -126,7 +171,7 @@ export default function StatsView() {
                     "bg-black/[0.045] dark:bg-white/[0.06]",
                     isToday && "ring-1 ring-brand/30",
                   )}
-                  title={`${weekdayName(date)} ${date} · ${stat.minutes} 分钟 · ${stat.count} 个番茄`}
+                  title={`${weekdayName(date)} ${formatDate(date)} · ${stat.minutes} 分钟 · ${stat.count} 个番茄`}
                 >
                   <div
                     className={cn(
@@ -151,6 +196,85 @@ export default function StatsView() {
               </div>
             );
           })}
+        </div>
+      </Card>
+
+      <Card className="fd-pop p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">{formatMonth(shown.year, shown.month)} 专注热力图</h2>
+            <p className="mt-0.5 text-xs text-muted">本月共 {humanizeMinutes(monthTotal)}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMonthOffset((v) => v - 1)}
+              title="上个月"
+              className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthOffset(0)}
+              disabled={monthOffset === 0}
+              className="rounded-lg border border-line bg-card px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              本月
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthOffset((v) => Math.min(0, v + 1))}
+              disabled={monthOffset === 0}
+              title="下个月"
+              className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-1 grid grid-cols-7 gap-1">
+            {WEEK_HEAD.map((label) => (
+              <div key={label} className="text-center text-[10px] text-muted">
+                周{label}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1">
+            {grid.map((weekRow, index) => (
+              <div key={index} className="grid grid-cols-7 gap-1">
+                {weekRow.map((cell) => {
+                  const level = cell.inMonth ? heatLevel(cell.stat.minutes, gridPeak) : 0;
+                  const isToday = cell.date === todayISO();
+                  return (
+                    <div
+                      key={cell.date}
+                      title={`${formatDate(cell.date)} ${weekdayName(cell.date)} · ${cell.stat.minutes} 分钟 · ${cell.stat.count} 个番茄`}
+                      className={cn(
+                        "flex h-8 items-center justify-center rounded-md text-[10px] tabular-nums transition-colors",
+                        cell.inMonth ? HEAT_CLASS[level] : "bg-black/[0.025] dark:bg-white/[0.03]",
+                        !cell.inMonth && "text-muted/50",
+                        cell.inMonth && level >= 3 && "text-white/95",
+                        isToday && "ring-1 ring-brand",
+                      )}
+                    >
+                      {parseDay(cell.date).getDate()}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
+          <span>少</span>
+          {HEAT_CLASS.map((cls, level) => (
+            <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
+          ))}
+          <span>多</span>
         </div>
       </Card>
 

@@ -155,11 +155,22 @@ export default function WidgetApp() {
         </div>
 
         <div className="flex flex-1 items-center gap-3 px-3.5 pb-1">
-          <Ring progress={progress} size={86} stroke={7}>
-            <span className="text-lg font-bold tabular-nums tracking-tight text-ink">
-              {formatClock(remaining)}
-            </span>
-          </Ring>
+          {settings.widgetShow.ring ? (
+            <Ring progress={progress} size={86} stroke={7}>
+              <span className="text-lg font-bold tabular-nums tracking-tight text-ink">
+                {formatClock(remaining)}
+              </span>
+            </Ring>
+          ) : (
+            <div className="flex w-[86px] shrink-0 flex-col items-center">
+              <span className="text-[10px] font-semibold tracking-wide text-muted">
+                {timer.mode === "work" ? "专注" : timer.mode === "short" ? "短休息" : "长休息"}
+              </span>
+              <span className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-ink">
+                {formatClock(remaining)}
+              </span>
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -174,10 +185,12 @@ export default function WidgetApp() {
               <span className={cn("text-[10px]", timer.running ? "fd-pulse text-brand" : "text-muted")}>
                 {timer.running ? "进行中" : "已暂停"}
               </span>
-              <span className="ml-auto text-[10px] text-muted">今日 {todayCount}🍅</span>
+              {settings.widgetShow.today ? (
+                <span className="ml-auto text-[10px] text-muted">今日 {todayCount}🍅</span>
+              ) : null}
             </div>
 
-            {nearestInfo && nearest ? (
+            {settings.widgetShow.countdown && nearestInfo && nearest ? (
               <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1.5 dark:bg-white/[0.06]">
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: nearest.color }} />
                 <span className="min-w-0 flex-1 truncate text-[11px] text-ink">{nearest.title}</span>
@@ -191,9 +204,11 @@ export default function WidgetApp() {
               </div>
             ) : null}
 
-            <p className="mt-1.5 truncate text-[11px] text-muted">
-              {nextTodo ? `待办 · ${nextTodo.title}` : "暂无待办"}
-            </p>
+            {settings.widgetShow.todo ? (
+              <p className="mt-1.5 truncate text-[11px] text-muted">
+                {nextTodo ? `待办 · ${nextTodo.title}` : "暂无待办"}
+              </p>
+            ) : null}
           </div>
         </div>
 

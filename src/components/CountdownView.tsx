@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, Pin, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
-import { countdownInfo, formatDate, todayISO } from "../lib/date";
+import { countdownInfo, formatDate, formatDateWithWeekday, todayISO } from "../lib/date";
 import { Card, EmptyState, Toggle } from "./ui";
 import { cn } from "../lib/cn";
 
@@ -60,10 +60,14 @@ export default function CountdownView() {
             <label className="mb-1.5 block text-xs font-medium text-muted">目标日期</label>
             <input
               type="date"
+              lang="zh-CN"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="rounded-xl border border-line bg-solid px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
             />
+            {/* Native date inputs follow the browser locale; show the Chinese
+                format explicitly so it is never ambiguous. */}
+            <p className="mt-1.5 text-[11px] text-muted">{formatDateWithWeekday(date)}</p>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-muted">标记色</label>
@@ -85,7 +89,8 @@ export default function CountdownView() {
           <button
             type="button"
             onClick={submit}
-            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98]"
+            disabled={!title.trim() || !date}
+            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
           >
             <Plus size={16} /> 添加
           </button>

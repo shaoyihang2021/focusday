@@ -4,11 +4,19 @@ import type { NoiseType } from "../types";
  * Ambient noise synthesised with the Web Audio API, so no audio assets ship
  * with the app. A short buffer is generated once and looped seamlessly.
  *
- * Graph: source -> per-source gain (fades in/out) -> master gain (volume).
+ * Graph: source -> source gain -> low shelf -> low pass -> master -> output.
+ * The two filter stages form a small equaliser: the shelf controls how thick
+ * the low end is, the low pass controls overall brightness.
  */
 
 const BUFFER_SECONDS = 3;
 const FADE_SECONDS = 0.35;
+const TONE_MIN_HZ = 200;
+const TONE_MAX_HZ = 16_000;
+
+/** Maps the 0–1 tone setting onto a logarithmic frequency sweep. */
+const toneToHz = (tone: number): number =>
+  TONE_MIN_HZ * (TONE_MAX_HZ / TONE_MIN_HZ) ** Math.min(1, Math.max(0, tone));
 
 interface Channel {
   node: AudioBufferSourceNode;
@@ -18,17 +26,31 @@ interface Channel {
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let lowShelf: BiquadFilterNode | null = null;
+let lowPass: BiquadFilterNode | null = null;
 let current: Channel | null = null;
 
 function ensureGraph(): AudioContext | null {
-  if (ctx && master) return ctx;
+  if (ctx && master && lowShelf && lowPass) return ctx;
   try {
     const Ctor =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     ctx = new Ctor();
+
     master = ctx.createGain();
     master.gain.value = 0;
+
+    lowPass = ctx.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.Q.value = 0.7;
+
+    lowShelf = ctx.createBiquadFilter();
+    lowShelf.type = "lowshelf";
+    lowShelf.frequency.value = 200;
+
+    lowShelf.connect(lowPass);
+    lowPass.connect(master);
     master.connect(ctx.destination);
     return ctx;
   } catch (err) {
@@ -115,11 +137,11 @@ function release(channel: Channel, immediate = false): void {
 
 function start(type: NoiseType): void {
   const context = ensureGraph();
-  if (!context || !master) return;
+  if (!context || !lowShelf) return;
 
   const gain = context.createGain();
   gain.gain.value = 0;
-  gain.connect(master);
+  gain.connect(lowShelf);
 
   const node = context.createBufferSource();
   node.buffer = buildBuffer(context, type);
@@ -135,10 +157,16 @@ function start(type: NoiseType): void {
 
 /**
  * Declarative entry point: call with the desired state whenever the timer or
- * the noise settings change. Handles starting, stopping, switching colour and
- * volume updates so the UI never has to.
+ * the noise settings change. Handles starting, stopping, switching colour,
+ * volume and equaliser updates so the UI never has to.
  */
-export function syncNoise(playing: boolean, type: NoiseType, volume: number): void {
+export function syncNoise(
+  playing: boolean,
+  type: NoiseType,
+  volume: number,
+  tone = 0.72,
+  bass = 0,
+): void {
   const shouldPlay = playing && type !== "off";
 
   if (!shouldPlay) {
@@ -150,10 +178,13 @@ export function syncNoise(playing: boolean, type: NoiseType, volume: number): vo
   }
 
   const context = ensureGraph();
-  if (!context || !master) return;
+  if (!context || !master || !lowPass || !lowShelf) return;
   if (context.state === "suspended") void context.resume();
 
-  master.gain.setTargetAtTime(Math.min(1, Math.max(0, volume)), context.currentTime, 0.05);
+  const now = context.currentTime;
+  master.gain.setTargetAtTime(Math.min(1, Math.max(0, volume)), now, 0.05);
+  lowPass.frequency.setTargetAtTime(toneToHz(tone), now, 0.05);
+  lowShelf.gain.setTargetAtTime(Math.min(12, Math.max(-12, bass)), now, 0.05);
 
   if (!current || current.type !== type) {
     // Switch colours: fade the old one out while the new one fades in.

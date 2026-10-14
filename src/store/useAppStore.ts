@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AppState, Countdown, Settings, Tag, ThemeMode, TimerMode, Todo } from "../types";
+import type { AppState, Countdown, Settings, SubStep, Tag, ThemeMode, TimerMode, Todo } from "../types";
 import {
   TAG_COLORS,
   defaultSettings,
@@ -39,6 +39,11 @@ interface Actions {
   addTag: (name: string) => Tag | null;
   /** Deletes a tag and strips it from every todo. */
   removeTag: (id: string) => void;
+
+  /** Checklist items inside a todo. */
+  addStep: (todoId: string, title: string) => void;
+  toggleStep: (todoId: string, stepId: string) => void;
+  removeStep: (todoId: string, stepId: string) => void;
 
   addCountdown: (input: NewCountdown) => void;
   updateCountdown: (id: string, patch: Partial<Omit<Countdown, "id">>) => void;
@@ -109,6 +114,7 @@ export const useAppStore = create<Store>((set, get) => ({
       completed: 0,
       priority,
       tags: [...tagIds],
+      steps: [],
       createdAt: Date.now(),
     };
     set((s) => ({ todos: [todo, ...s.todos] }));
@@ -139,6 +145,36 @@ export const useAppStore = create<Store>((set, get) => ({
 
   updateTodo: (id, patch) =>
     set((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
+
+  addStep: (todoId, title) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const step: SubStep = { id: uid(), title: trimmed, done: false };
+    set((s) => ({
+      todos: s.todos.map((t) => (t.id === todoId ? { ...t, steps: [...t.steps, step] } : t)),
+    }));
+  },
+
+  toggleStep: (todoId, stepId) =>
+    set((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todoId
+          ? {
+              ...t,
+              steps: t.steps.map((step) =>
+                step.id === stepId ? { ...step, done: !step.done } : step,
+              ),
+            }
+          : t,
+      ),
+    })),
+
+  removeStep: (todoId, stepId) =>
+    set((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todoId ? { ...t, steps: t.steps.filter((step) => step.id !== stepId) } : t,
+      ),
+    })),
 
   toggleTodo: (id) =>
     set((s) => ({

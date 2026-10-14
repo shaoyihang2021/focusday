@@ -55,3 +55,44 @@ export function streakDays(focusByDay: FocusByDay): number {
   }
   return streak;
 }
+
+export interface HeatCell {
+  date: string;
+  stat: DayStat;
+  /** False for the leading/trailing padding cells that belong to other months. */
+  inMonth: boolean;
+}
+
+/**
+ * Calendar grid for one month, laid out Monday-first (Chinese convention).
+ * Returns whole weeks so every row has exactly seven cells.
+ */
+export function monthGrid(
+  focusByDay: FocusByDay,
+  year: number,
+  month: number,
+): HeatCell[][] {
+  const first = new Date(year, month - 1, 1);
+  // getDay(): 0 = Sunday. Shift so Monday becomes index 0.
+  const lead = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const totalCells = Math.ceil((lead + daysInMonth) / 7) * 7;
+
+  const weeks: HeatCell[][] = [];
+  for (let index = 0; index < totalCells; index += 1) {
+    if (index % 7 === 0) weeks.push([]);
+    const dayOffset = index - lead + 1;
+    const d = new Date(year, month - 1, dayOffset);
+    const date = dateKey(d);
+    weeks[weeks.length - 1].push({
+      date,
+      stat: dayStat(focusByDay, date),
+      inMonth: d.getMonth() === month - 1,
+    });
+  }
+  return weeks;
+}
+
+/** Highest single-day minutes inside a month (used for heat levels). */
+export const monthPeak = (weeks: HeatCell[][]): number =>
+  Math.max(0, ...weeks.flat().filter((c) => c.inMonth).map((c) => c.stat.minutes));

@@ -33,6 +33,25 @@ export interface DayStat {
   count: number;
 }
 
+/** A single checklist item inside a todo, used to break work into steps. */
+export interface SubStep {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+/** Which blocks the detached desktop widget renders. */
+export interface WidgetContent {
+  /** Circular progress ring; when off the clock is shown as plain text. */
+  ring: boolean;
+  /** Today's finished pomodoro count. */
+  today: boolean;
+  /** Pinned (or nearest) countdown. */
+  countdown: boolean;
+  /** The next unfinished todo. */
+  todo: boolean;
+}
+
 /** `YYYY-MM-DD` -> focused time for that day. */
 export type FocusByDay = Record<string, DayStat>;
 
@@ -48,6 +67,8 @@ export interface Todo {
   priority: 0 | 1 | 2;
   /** Ids of the tags attached to this task. */
   tags: string[];
+  /** Optional checklist breaking the task into smaller steps. */
+  steps: SubStep[];
   createdAt: number;
   doneAt?: number;
 }
@@ -81,6 +102,8 @@ export interface Settings {
   widgetSize: WidgetSize;
   /** Widget visual style. */
   widgetSkin: WidgetSkin;
+  /** Which blocks the widget renders. */
+  widgetShow: WidgetContent;
   /** Lock the widget so it can no longer be dragged by accident. */
   widgetLocked: boolean;
   /** Last known widget position, restored on next launch. */
@@ -89,6 +112,10 @@ export interface Settings {
   noise: NoiseType;
   /** Noise volume, 0 – 1. */
   noiseVolume: number;
+  /** EQ: low-pass cutoff as 0 (deep, 200Hz) – 1 (bright, 16kHz). */
+  noiseTone: number;
+  /** EQ: low-shelf gain in dB, -12 – +12. */
+  noiseBass: number;
   /** Show the live countdown in the tray tooltip. */
   trayCountdown: boolean;
   /**

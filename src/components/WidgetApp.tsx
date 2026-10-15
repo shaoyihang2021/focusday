@@ -90,13 +90,13 @@ export default function WidgetApp() {
   const nextTodo = todos.find((t) => !t.done) ?? null;
 
   const pinned = countdowns.filter((c) => c.pinned);
-  const pool = pinned.length > 0 ? pinned : countdowns.filter((c) => countdownInfo(c.date, c.yearly).upcoming);
+  const pool = pinned.length > 0 ? pinned : countdowns.filter((c) => countdownInfo(c.date, c.repeat).upcoming);
   const nearest = [...pool].sort((a, b) => {
-    const da = countdownInfo(a.date, a.yearly).days;
-    const db = countdownInfo(b.date, b.yearly).days;
+    const da = countdownInfo(a.date, a.repeat).days;
+    const db = countdownInfo(b.date, b.repeat).days;
     return da - db;
   })[0];
-  const nearestInfo = nearest ? countdownInfo(nearest.date, nearest.yearly) : null;
+  const nearestInfo = nearest ? countdownInfo(nearest.date, nearest.repeat) : null;
 
   return (
     <div className="h-full w-full p-2">

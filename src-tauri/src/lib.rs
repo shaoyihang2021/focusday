@@ -137,6 +137,178 @@ fn update_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 3x5 bitmap glyphs for the digits drawn inside the tray icon.
+const DIGIT_GLYPHS: [[u8; 5]; 10] = [
+    [0b111, 0b101, 0b101, 0b101, 0b111], // 0
+    [0b010, 0b110, 0b010, 0b010, 0b111], // 1
+    [0b111, 0b001, 0b111, 0b100, 0b111], // 2
+    [0b111, 0b001, 0b111, 0b001, 0b111], // 3
+    [0b101, 0b101, 0b111, 0b001, 0b001], // 4
+    [0b111, 0b100, 0b111, 0b001, 0b111], // 5
+    [0b111, 0b100, 0b111, 0b101, 0b111], // 6
+    [0b111, 0b001, 0b001, 0b001, 0b001], // 7
+    [0b111, 0b101, 0b111, 0b101, 0b111], // 8
+    [0b111, 0b101, 0b111, 0b001, 0b111], // 9
+];
+
+/// Tray icons are rendered at 32x32 so they stay crisp on high DPI taskbars.
+const ICON_SIZE: usize = 32;
+const GLYPH_SCALE: usize = 2;
+
+fn parse_hex_color(value: &str) -> (u8, u8, u8) {
+    let hex = value.trim().trim_start_matches('#');
+    if hex.len() != 6 {
+        return (247, 74, 44);
+    }
+    let channel = |range: std::ops::Range<usize>| {
+        u8::from_str_radix(&hex[range], 16).unwrap_or(255)
+    };
+    (channel(0..2), channel(2..4), channel(4..6))
+}
+
+fn set_pixel(rgba: &mut [u8], size: usize, x: usize, y: usize, r: u8, g: u8, b: u8, a: u8) {
+    if x >= size || y >= size {
+        return;
+    }
+    let index = (y * size + x) * 4;
+    rgba[index] = r;
+    rgba[index + 1] = g;
+    rgba[index + 2] = b;
+    rgba[index + 3] = a;
+}
+
+/// Draws a progress ring plus the remaining minutes into an RGBA buffer.
+///
+/// The digits use a 3x5 bitmap font scaled up, with a one pixel dark halo so
+/// they stay readable on both light and dark taskbars. `minutes` is shown as
+/// two digits inside the ring; the full time lives in the tooltip, because a
+/// 16px tray icon cannot legibly fit `24:31`.
+fn render_tray_icon(minutes: u32, fraction: f64, color_hex: &str) -> Vec<u8> {
+    let size = ICON_SIZE;
+    let mut rgba = vec![0u8; size * size * 4];
+
+    let (br, bg, bb) = parse_hex_color(color_hex);
+    let center = size as f64 / 2.0;
+    let outer = 15.0_f64;
+    let inner = 11.5_f64;
+    let start = -std::f64::consts::FRAC_PI_2; // 12 o'clock
+    let sweep = std::f64::consts::TAU * fraction.clamp(0.0, 1.0);
+
+    for y in 0..size {
+        for x in 0..size {
+            let dx = x as f64 + 0.5 - center;
+            let dy = y as f64 + 0.5 - center;
+            let distance = (dx * dx + dy * dy).sqrt();
+            if distance > outer || distance < inner {
+                continue;
+            }
+            let mut angle = dy.atan2(dx) - start;
+            if angle < 0.0 {
+                angle += std::f64::consts::TAU;
+            }
+            if angle <= sweep {
+                set_pixel(&mut rgba, size, x, y, br, bg, bb, 255);
+            } else {
+                set_pixel(&mut rgba, size, x, y, 255, 255, 255, 70);
+            }
+        }
+    }
+
+    // Rasterise the minute count into a mask first, then draw halo + glyph.
+    let label = format!("{:02}", minutes.min(99));
+    let glyph_w = 3 * GLYPH_SCALE;
+    let glyph_h = 5 * GLYPH_SCALE;
+    let spacing = 2;
+    let total_w = label.len() * glyph_w + label.len().saturating_sub(1) * spacing;
+    let origin_x = (size.saturating_sub(total_w)) / 2;
+    let origin_y = (size.saturating_sub(glyph_h)) / 2;
+
+    let mut mask = vec![false; size * size];
+    for (index, ch) in label.chars().enumerate() {
+        let Some(digit) = ch.to_digit(10) else { continue };
+        let glyph_x = origin_x + index * (glyph_w + spacing);
+        for row in 0..5 {
+            let bits = DIGIT_GLYPHS[digit as usize][row];
+            for col in 0..3 {
+                if bits & (0b100 >> col) == 0 {
+                    continue;
+                }
+                for oy in 0..GLYPH_SCALE {
+                    for ox in 0..GLYPH_SCALE {
+                        let px = glyph_x + col * GLYPH_SCALE + ox;
+                        let py = origin_y + row * GLYPH_SCALE + oy;
+                        if px < size && py < size {
+                            mask[py * size + px] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for y in 0..size {
+        for x in 0..size {
+            if mask[y * size + x] {
+                continue;
+            }
+            // Halo: any empty pixel touching a glyph pixel gets a dark tint.
+            let touches = [(1, 0), (0, 1), (-1, 0), (0, -1)].iter().any(|(dx, dy)| {
+                let nx = x as isize + dx;
+                let ny = y as isize + dy;
+                nx >= 0
+                    && ny >= 0
+                    && (nx as usize) < size
+                    && (ny as usize) < size
+                    && mask[ny as usize * size + nx as usize]
+            });
+            if touches && rgba[(y * size + x) * 4 + 3] < 200 {
+                set_pixel(&mut rgba, size, x, y, 0, 0, 0, 180);
+            }
+        }
+    }
+
+    for y in 0..size {
+        for x in 0..size {
+            if mask[y * size + x] {
+                set_pixel(&mut rgba, size, x, y, 255, 255, 255, 255);
+            }
+        }
+    }
+
+    rgba
+}
+
+/// Paints the tray icon with the current focus progress.
+/// `minutes: None` restores the default application icon.
+#[tauri::command]
+fn set_tray_progress(
+    app: AppHandle,
+    minutes: Option<u32>,
+    fraction: f64,
+    color: String,
+) -> Result<(), String> {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+
+    let icon = match minutes {
+        Some(remaining) => {
+            let rgba = render_tray_icon(remaining, fraction, &color);
+            Some(tauri::image::Image::new_owned(
+                rgba,
+                ICON_SIZE as u32,
+                ICON_SIZE as u32,
+            ))
+        }
+        None => app.default_window_icon().cloned(),
+    };
+
+    if let Some(icon) = icon {
+        tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Registers the global shortcut used to toggle the main window.
 /// Passing `None` (or an empty string) unregisters everything.
 /// Returns whether a shortcut is active afterwards.
@@ -256,6 +428,7 @@ pub fn run() {
             focus_main_window,
             set_auto_launch,
             update_tray_tooltip,
+            set_tray_progress,
             set_global_shortcut,
             write_backup,
             read_backup,
@@ -271,4 +444,106 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running FocusDay");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SIZE: usize = ICON_SIZE;
+    const ACCENT: (u8, u8, u8) = (37, 99, 235);
+
+    fn pixel(rgba: &[u8], x: usize, y: usize) -> (u8, u8, u8, u8) {
+        let i = (y * SIZE + x) * 4;
+        (rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3])
+    }
+
+    fn count(rgba: &[u8], test: impl Fn((u8, u8, u8, u8)) -> bool) -> usize {
+        (0..SIZE * SIZE)
+            .filter(|i| test(pixel(rgba, i % SIZE, i / SIZE)))
+            .count()
+    }
+
+    #[test]
+    fn parses_hex_colours_and_falls_back() {
+        assert_eq!(parse_hex_color("#2563eb"), ACCENT);
+        assert_eq!(parse_hex_color("2563eb"), ACCENT);
+        assert_eq!(parse_hex_color("  #F74A2C "), (247, 74, 44));
+        assert_eq!(parse_hex_color("nope"), (247, 74, 44));
+    }
+
+    #[test]
+    fn draws_a_progress_ring_proportional_to_the_fraction() {
+        let empty = render_tray_icon(25, 0.0, "#2563eb");
+        let half = render_tray_icon(25, 0.5, "#2563eb");
+        let full = render_tray_icon(25, 1.0, "#2563eb");
+
+        let is_accent = |p: (u8, u8, u8, u8)| (p.0, p.1, p.2) == ACCENT && p.3 == 255;
+        let accent_empty = count(&empty, is_accent);
+        let accent_half = count(&half, is_accent);
+        let accent_full = count(&full, is_accent);
+
+        // Nothing elapsed, half elapsed, everything elapsed.
+        assert_eq!(accent_empty, 0);
+        assert!(accent_half > 0, "half progress should light up the ring");
+        assert!(
+            accent_full > accent_half,
+            "full progress ({accent_full}) should exceed half ({accent_half})"
+        );
+
+        // The track ring is still drawn behind the progress arc.
+        let is_track = |p: (u8, u8, u8, u8)| p.3 > 0 && p.3 < 200;
+        assert!(count(&empty, is_track) > 100, "the empty ring needs a visible track");
+    }
+
+    #[test]
+    fn digit_halo_keeps_the_number_readable_on_any_background() {
+        let rgba = render_tray_icon(12, 0.3, "#2563eb");
+        let white = count(&rgba, |p| p == (255, 255, 255, 255));
+        let halo = count(&rgba, |p| p == (0, 0, 0, 180));
+
+        // "12": 8 filled cells for the glyph '1' plus 11 for '2', at 2x2 px.
+        assert_eq!(white, 76, "expected both digits to be fully painted");
+        assert!(
+            halo >= white / 2,
+            "the glyphs need a dark halo for contrast, got {halo} vs {white} white pixels"
+        );
+
+        // A halo pixel must never sit on top of the progress ring.
+        for y in 0..SIZE {
+            for x in 0..SIZE {
+                if pixel(&rgba, x, y) == (0, 0, 0, 180) {
+                    let dx = x as f64 + 0.5 - (SIZE / 2) as f64;
+                    let dy = y as f64 + 0.5 - (SIZE / 2) as f64;
+                    assert!(
+                        (dx * dx + dy * dy).sqrt() < 11.5,
+                        "halo pixel at ({x},{y}) overlaps the ring"
+                    );
+                }
+            }
+        }
+
+        // Glyphs and halo sit inside the ring, never overlapping it.
+        let (cx, cy) = (SIZE / 2, SIZE / 2);
+        for y in 0..SIZE {
+            for x in 0..SIZE {
+                let p = pixel(&rgba, x, y);
+                if p == (255, 255, 255, 255) {
+                    let dx = x as f64 + 0.5 - cx as f64;
+                    let dy = y as f64 + 0.5 - cy as f64;
+                    assert!(
+                        (dx * dx + dy * dy).sqrt() < 11.5,
+                        "digit pixel at ({x},{y}) overlaps the ring"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn minutes_are_clamped_to_two_digits() {
+        let high = render_tray_icon(150, 0.5, "#2563eb");
+        let capped = render_tray_icon(99, 0.5, "#2563eb");
+        assert_eq!(high, capped, "values above 99 should render as 99");
+    }
 }

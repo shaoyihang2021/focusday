@@ -1,3 +1,5 @@
+import type { CountdownRepeat } from "../types";
+
 export const parseDay = (value: string): Date => {
   const [y, m, d] = value.split("-").map(Number);
   return new Date(y || 1970, (m || 1) - 1, d || 1);
@@ -12,6 +14,12 @@ export interface CountdownInfo {
   upcoming: boolean;
   label: string;
   weekday: string;
+  /**
+   * `YYYY-MM-DD` of the occurrence the countdown actually points at. For
+   * repeating events this is the next occurrence rather than the stored date,
+   * so the card never pairs an old date with the wrong weekday.
+   */
+  nextDate: string;
 }
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -44,25 +52,48 @@ export const shortDate = (dateStr: string): string => {
 /** `2026年10月` — month heading for the heatmap. */
 export const formatMonth = (year: number, month: number): string => `${year}年${month}月`;
 
+/** Clamps a day-of-month into the given month's real length (e.g. 31 -> 28). */
+function clampToMonth(year: number, month: number, day: number): Date {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(day, lastDay));
+}
+
+/** Next occurrence of `day` on or after today, allowing for short months. */
+function nextMonthly(today: Date, day: number): Date {
+  let candidate = clampToMonth(today.getFullYear(), today.getMonth(), day);
+  if (candidate.getTime() < today.getTime()) {
+    candidate = clampToMonth(today.getFullYear(), today.getMonth() + 1, day);
+  }
+  return candidate;
+}
+
 /**
- * Number of days until the target date. Non-repeating events in the past keep
- * a negative value so we can render "已过去 N 天". Yearly events roll over to
- * the next occurrence.
+ * Days until the next occurrence of a date.
+ *
+ * - `none`: the exact date, so past events keep a negative value.
+ * - `yearly`: next time that month/day comes around (birthdays).
+ * - `monthly`: next time that day-of-month comes around.
+ * - `weekly`: next time that weekday comes around (today counts as 0).
  */
 export function countdownInfo(
   dateStr: string,
-  yearly: boolean,
+  repeat: CountdownRepeat,
   now: Date = new Date(),
 ): CountdownInfo {
   const today = startOfDay(now);
   const base = startOfDay(parseDay(dateStr));
   let target = base;
 
-  if (yearly) {
+  if (repeat === "yearly") {
     target = new Date(today.getFullYear(), base.getMonth(), base.getDate());
     if (target.getTime() < today.getTime()) {
       target = new Date(today.getFullYear() + 1, base.getMonth(), base.getDate());
     }
+  } else if (repeat === "monthly") {
+    target = nextMonthly(today, base.getDate());
+  } else if (repeat === "weekly") {
+    const offset = (base.getDay() - today.getDay() + 7) % 7;
+    target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
   }
 
   const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);
@@ -74,5 +105,6 @@ export function countdownInfo(
     upcoming: days >= 0,
     label,
     weekday: WEEKDAYS[target.getDay()],
+    nextDate: dateKey(target),
   };
 }

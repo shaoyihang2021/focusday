@@ -1,22 +1,37 @@
 import type { FocusByDay } from "../types";
 import { isTauri } from "./env";
 import { formatDate, formatMonth, parseDay, todayISO, weekdayName } from "./date";
-import { lastDays, monthGrid, monthPeak, streakDays, todayStat, totals } from "./stats";
+import {
+  lastDays,
+  lastMonths,
+  monthGrid,
+  monthPeak,
+  streakDays,
+  sumDates,
+  yearGrid,
+} from "./stats";
 
 /**
  * Renders a shareable stats card with the Canvas API instead of pulling in a
- * DOM-to-image library: the drawing is fully deterministic, the Chinese text
- * uses the system font and Tailwind's modern colour functions never have to be
+ * DOM-to-image library: the drawing is fully deterministic, Chinese text uses
+ * the system font and Tailwind's modern colour functions never have to be
  * serialised. All colours are read from the live theme tokens so the exported
  * PNG matches the app (including dark mode and the selected accent).
  */
 
+export type ExportRange = "week" | "month" | "year";
+
 const CARD_W = 1200;
-const CARD_H = 1560;
 const PAD = 72;
 const FONT = '"PingFang SC","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif';
 const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
+
+const RANGE_LABEL: Record<ExportRange, string> = {
+  week: "近 7 天",
+  month: "近 30 天",
+  year: "近 12 个月",
+};
 
 interface Tokens {
   canvas: string;
@@ -59,7 +74,7 @@ function roundRect(
   h: number,
   r: number,
 ): void {
-  const radius = Math.min(r, w / 2, h / 2);
+  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + w - radius, y);
@@ -103,176 +118,303 @@ const text = (
   ctx.textAlign = "left";
 };
 
+const heatLevel = (minutes: number, peak: number): number => {
+  if (minutes <= 0 || peak <= 0) return 0;
+  const ratio = minutes / peak;
+  if (ratio <= 0.25) return 1;
+  if (ratio <= 0.5) return 2;
+  if (ratio <= 0.75) return 3;
+  return 4;
+};
+
+/** One bar in the exported chart. */
+interface Bar {
+  label: string;
+  sub: string;
+  minutes: number;
+  emphasis: boolean;
+}
+
+function buildBars(focusByDay: FocusByDay, range: ExportRange): Bar[] {
+  if (range === "year") {
+    return lastMonths(focusByDay, 12).map((bucket) => ({
+      label: `${bucket.month}月`,
+      sub: `${bucket.year}`,
+      minutes: bucket.stat.minutes,
+      emphasis: bucket.month === new Date().getMonth() + 1,
+    }));
+  }
+  const days = lastDays(focusByDay, range === "week" ? 7 : 30);
+  return days.map((day) => ({
+    label: weekdayName(day.date),
+    sub: `${parseDay(day.date).getMonth() + 1}/${parseDay(day.date).getDate()}`,
+    minutes: day.stat.minutes,
+    emphasis: day.date === todayISO(),
+  }));
+}
+
 /** Draws the whole card and resolves with a PNG blob. */
-export async function buildStatsCard(focusByDay: FocusByDay): Promise<Blob> {
+export async function buildStatsCard(
+  focusByDay: FocusByDay,
+  range: ExportRange = "week",
+): Promise<Blob> {
+  const t = readTokens();
+  const today = todayISO();
+  const year = new Date().getFullYear();
+
+  const bars = buildBars(focusByDay, range);
+  const barPeak = Math.max(0, ...bars.map((bar) => bar.minutes));
+
+  // Heatmap: a calendar month for week/month ranges, a whole-year grid for year.
+  const monthCells = range === "year" ? [] : monthGrid(focusByDay, new Date().getFullYear(), new Date().getMonth() + 1);
+  const yearCells = range === "year" ? yearGrid(focusByDay, year) : [];
+  const gridPeak =
+    range === "year"
+      ? Math.max(0, ...yearCells.flat().filter((c) => c.inMonth).map((c) => c.stat.minutes))
+      : monthPeak(monthCells);
+
+  // ---- range metrics ------------------------------------------------------
+  const rangeDates: string[] =
+    range === "year"
+      ? Object.keys(focusByDay).filter((date) => date.startsWith(`${year}-`))
+      : lastDays(focusByDay, range === "week" ? 7 : 30).map((day) => day.date);
+  const rangeStat = sumDates(focusByDay, rangeDates);
+  const rangeDays = range === "week" ? 7 : range === "month" ? 30 : 365;
+  const average = Math.round(rangeStat.minutes / Math.max(1, rangeDays));
+
+  const startDate = rangeDates.length > 0 ? rangeDates[0] : today;
+  const endDate = range === "year" ? `${year}-12-31` : today;
+  const periodText =
+    range === "year" ? `${year}年` : `${formatDate(startDate)} - ${formatDate(endDate)}`;
+
+  // ---- layout -------------------------------------------------------------
+  const HEADER_TOP = 56;
+  const METRICS_TOP = 200;
+  const METRICS_H = 170;
+  const BARS_TOP = METRICS_TOP + METRICS_H + 80;
+  const BARS_TITLE_H = 70;
+  const CHART_H = 260;
+  const HEAT_TOP = BARS_TOP + BARS_TITLE_H + CHART_H + 128;
+  const isYearHeat = range === "year";
+  const rows = isYearHeat ? 7 : monthCells.length;
+  const heatCellH = isYearHeat ? 22 : 76;
+  const heatCols = isYearHeat ? yearCells.length : 7;
+  const heatGap = isYearHeat ? 3 : 12;
+  const HEAT_GRID_TOP = HEAT_TOP + 30;
+  const CARD_H = HEAT_GRID_TOP + 20 + rows * (heatCellH + heatGap) + 90;
+
   const canvas = document.createElement("canvas");
   canvas.width = CARD_W;
   canvas.height = CARD_H;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("无法创建画布上下文");
 
-  const t = readTokens();
-  const today = todayISO();
-  const week = lastDays(focusByDay, 7);
-  const todayStatValue = todayStat(focusByDay);
-  const total = totals(focusByDay);
-  const streak = streakDays(focusByDay);
-  const weekMinutes = week.reduce((sum, day) => sum + day.stat.minutes, 0);
-  const weekCount = week.reduce((sum, day) => sum + day.stat.count, 0);
-  const weekPeak = Math.max(...week.map((day) => day.stat.minutes));
-  const now = new Date();
-  const grid = monthGrid(focusByDay, now.getFullYear(), now.getMonth() + 1);
-  const gridPeak = monthPeak(grid);
-
   ctx.fillStyle = t.canvas;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
   // ---- header -------------------------------------------------------------
-  fillRound(ctx, PAD, 56, 8, 46, 4, t.brand);
-  text(ctx, "FocusDay 专注统计", PAD + 26, 96, `700 50px ${FONT}`, t.ink);
+  fillRound(ctx, PAD, HEADER_TOP, 8, 46, 4, t.brand);
+  text(ctx, "FocusDay 专注统计", PAD + 26, HEADER_TOP + 40, `700 50px ${FONT}`, t.ink);
   text(
     ctx,
-    `${formatDate(today)} ${weekdayName(today)}`,
+    `${RANGE_LABEL[range]} · ${periodText}`,
     PAD + 26,
-    140,
+    HEADER_TOP + 84,
     `400 28px ${FONT}`,
     t.muted,
   );
 
   // ---- metrics ------------------------------------------------------------
   const metrics: [string, string, string][] = [
-    ["今日专注", String(todayStatValue.minutes), `${todayStatValue.count} 个番茄`],
-    ["近 7 天专注", String(weekMinutes), `${weekCount} 个番茄`],
-    ["累计专注", String(total.minutes), `共 ${total.count} 个番茄`],
-    ["连续专注", String(streak), streak > 0 ? "保持下去" : "从今天开始"],
+    ["本段专注", String(rangeStat.minutes), `${rangeStat.count} 个番茄`],
+    ["日均专注", String(average), "分钟 / 天"],
+    ["连续专注", String(streakDays(focusByDay)), "天"],
+    ["累计专注", String(Object.keys(focusByDay).length ? sumDates(focusByDay, Object.keys(focusByDay)).minutes : 0), "分钟（全部）"],
   ];
   const gap = 24;
   const boxW = (CARD_W - PAD * 2 - gap * 3) / 4;
   metrics.forEach(([label, value, hint], index) => {
     const x = PAD + index * (boxW + gap);
-    fillRound(ctx, x, 200, boxW, 170, 24, t.card);
-    roundRect(ctx, x, 200, boxW, 170, 24);
+    fillRound(ctx, x, METRICS_TOP, boxW, METRICS_H, 24, t.card);
+    roundRect(ctx, x, METRICS_TOP, boxW, METRICS_H, 24);
     ctx.strokeStyle = t.line;
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    text(ctx, label, x + 28, 248, `500 26px ${FONT}`, t.muted);
-    text(ctx, value, x + 28, 316, `700 62px ${FONT}`, t.ink);
-    const valueWidth = ctx.measureText(value).width;
-    text(ctx, "分钟", x + 28 + valueWidth + 10, 316, `400 24px ${FONT}`, t.muted);
-    text(ctx, hint, x + 28, 348, `400 22px ${FONT}`, t.muted);
+    text(ctx, label, x + 28, METRICS_TOP + 48, `500 26px ${FONT}`, t.muted);
+    text(ctx, value, x + 28, METRICS_TOP + 116, `700 58px ${FONT}`, t.ink);
+    text(ctx, hint, x + 28, METRICS_TOP + 148, `400 22px ${FONT}`, t.muted);
   });
 
-  // ---- 7 day bars ---------------------------------------------------------
-  const barsTop = 450;
-  text(ctx, "近 7 天专注时长", PAD, barsTop + 26, `600 34px ${FONT}`, t.ink);
+  // ---- bars ---------------------------------------------------------------
   text(
     ctx,
-    `${weekPeak > 0 ? `单日最高 ${weekPeak} 分钟` : "暂无记录"}`,
+    range === "year" ? "每月专注时长" : range === "week" ? "近 7 天专注时长" : "近 30 天专注时长",
+    PAD,
+    BARS_TOP + 26,
+    `600 34px ${FONT}`,
+    t.ink,
+  );
+  text(
+    ctx,
+    barPeak > 0 ? `最高 ${barPeak} 分钟` : "暂无记录",
     CARD_W - PAD,
-    barsTop + 26,
+    BARS_TOP + 26,
     `400 24px ${FONT}`,
     t.muted,
     "right",
   );
 
-  const chartTop = barsTop + 70;
-  const chartH = 260;
-  const barGap = 26;
-  const barW = (CARD_W - PAD * 2 - barGap * 6) / 7;
-  week.forEach((day, index) => {
+  const chartTop = BARS_TOP + BARS_TITLE_H;
+  const barGap = bars.length > 20 ? 6 : bars.length > 10 ? 14 : 26;
+  const barW = (CARD_W - PAD * 2 - barGap * (bars.length - 1)) / bars.length;
+  const dense = bars.length > 20;
+
+  bars.forEach((bar, index) => {
     const x = PAD + index * (barW + barGap);
-    const ratio = weekPeak > 0 ? day.stat.minutes / weekPeak : 0;
-    const isToday = day.date === today;
+    const ratio = barPeak > 0 ? bar.minutes / barPeak : 0;
 
-    fillRound(ctx, x, chartTop, barW, chartH, 16, t.line);
+    fillRound(ctx, x, chartTop, barW, CHART_H, dense ? 6 : 16, t.line);
 
-    const height = Math.max(0, ratio * chartH);
+    const height = ratio * CHART_H;
     if (height > 0) {
-      fillRound(ctx, x, chartTop + chartH - height, barW, height, 16, withAlpha(t.brand, isToday ? 1 : 0.55));
+      fillRound(
+        ctx,
+        x,
+        chartTop + CHART_H - height,
+        barW,
+        height,
+        dense ? 6 : 16,
+        withAlpha(t.brand, bar.emphasis ? 1 : 0.55),
+      );
     }
 
-    text(
-      ctx,
-      String(day.stat.minutes),
-      x + barW / 2,
-      chartTop - 14,
-      `600 24px ${FONT}`,
-      day.stat.minutes > 0 ? t.ink : t.muted,
-      "center",
-    );
-    text(
-      ctx,
-      weekdayName(day.date),
-      x + barW / 2,
-      chartTop + chartH + 40,
-      `500 26px ${FONT}`,
-      isToday ? t.brand : t.muted,
-      "center",
-    );
-    text(
-      ctx,
-      `${parseDay(day.date).getMonth() + 1}/${parseDay(day.date).getDate()}`,
-      x + barW / 2,
-      chartTop + chartH + 72,
-      `400 22px ${FONT}`,
-      t.muted,
-      "center",
-    );
+    if (!dense) {
+      text(
+        ctx,
+        String(bar.minutes),
+        x + barW / 2,
+        chartTop - 14,
+        `600 24px ${FONT}`,
+        bar.minutes > 0 ? t.ink : t.muted,
+        "center",
+      );
+    }
+
+    // Too many labels crowd each other, so thin them out for 30 day / 12 month.
+    const every = bars.length === 30 ? 3 : 1;
+    if (index % every === 0) {
+      text(
+        ctx,
+        bar.label,
+        x + barW / 2,
+        chartTop + CHART_H + (dense ? 34 : 40),
+        `500 ${dense ? 20 : 26}px ${FONT}`,
+        bar.emphasis ? t.brand : t.muted,
+        "center",
+      );
+      if (!dense && bars.length <= 12) {
+        text(
+          ctx,
+          bar.sub,
+          x + barW / 2,
+          chartTop + CHART_H + 72,
+          `400 22px ${FONT}`,
+          t.muted,
+          "center",
+        );
+      }
+    }
   });
 
-  // ---- month heatmap ------------------------------------------------------
-  const heatTop = chartTop + chartH + 128;
+  // ---- heatmap ------------------------------------------------------------
   text(
     ctx,
-    `${formatMonth(now.getFullYear(), now.getMonth() + 1)} 专注热力图`,
+    isYearHeat ? `${year}年 专注热力图` : `${formatMonth(new Date().getFullYear(), new Date().getMonth() + 1)} 专注热力图`,
     PAD,
-    heatTop,
+    HEAT_TOP,
     `600 34px ${FONT}`,
     t.ink,
   );
 
-  const heatGridTop = heatTop + 40;
-  const cellGap = 12;
-  const cellW = (CARD_W - PAD * 2 - cellGap * 6) / 7;
-  const cellH = 76;
-
-  WEEK_HEAD.forEach((label, index) => {
-    text(
-      ctx,
-      `周${label}`,
-      PAD + index * (cellW + cellGap) + cellW / 2,
-      heatGridTop,
-      `400 22px ${FONT}`,
-      t.muted,
-      "center",
-    );
-  });
-
-  grid.forEach((row, rowIndex) => {
-    row.forEach((cell, colIndex) => {
-      const x = PAD + colIndex * (cellW + cellGap);
-      const y = heatGridTop + 16 + rowIndex * (cellH + cellGap);
-      const level = cell.inMonth && gridPeak > 0 ? heatLevel(cell.stat.minutes, gridPeak) : 0;
-
-      const bg = !cell.inMonth
-        ? t.line
-        : level === 0
-          ? t.line
-          : withAlpha(t.brand, HEAT_ALPHA[level]);
-      fillRound(ctx, x, y, cellW, cellH, 14, bg);
-
+  if (isYearHeat) {
+    // Month tick labels above the week columns.
+    const cellW = (CARD_W - PAD * 2 - heatGap * (heatCols - 1)) / heatCols;
+    yearCells.forEach((week, colIndex) => {
+      const first = parseDay(week[0].date);
+      if (first.getDate() <= 7) {
+        text(
+          ctx,
+          `${first.getMonth() + 1}月`,
+          PAD + colIndex * (cellW + heatGap),
+          HEAT_GRID_TOP,
+          `400 20px ${FONT}`,
+          t.muted,
+        );
+      }
+    });
+  } else {
+    WEEK_HEAD.forEach((label, index) => {
+      const cellW = (CARD_W - PAD * 2 - heatGap * 6) / 7;
       text(
         ctx,
-        String(parseDay(cell.date).getDate()),
-        x + cellW / 2,
-        y + cellH / 2 + 9,
-        `500 24px ${FONT}`,
-        !cell.inMonth ? withAlpha("#94a3b8", 0.5) : level >= 3 ? "#ffffff" : t.muted,
+        `周${label}`,
+        PAD + index * (cellW + heatGap) + cellW / 2,
+        HEAT_GRID_TOP,
+        `400 22px ${FONT}`,
+        t.muted,
         "center",
       );
     });
-  });
+  }
+
+  if (isYearHeat) {
+    const cellW = (CARD_W - PAD * 2 - heatGap * (heatCols - 1)) / heatCols;
+    const y = HEAT_GRID_TOP + 20;
+    yearCells.forEach((week, colIndex) => {
+      week.forEach((cell, rowIndex) => {
+        const x = PAD + colIndex * (cellW + heatGap);
+        const cy = y + rowIndex * (heatCellH + heatGap);
+        const level = cell.inMonth ? heatLevel(cell.stat.minutes, gridPeak) : 0;
+        fillRound(
+          ctx,
+          x,
+          cy,
+          cellW,
+          heatCellH,
+          3,
+          !cell.inMonth || level === 0 ? t.line : withAlpha(t.brand, HEAT_ALPHA[level]),
+        );
+      });
+    });
+  } else {
+    const cellW = (CARD_W - PAD * 2 - heatGap * 6) / 7;
+    monthCells.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        const x = PAD + colIndex * (cellW + heatGap);
+        const y = HEAT_GRID_TOP + 16 + rowIndex * (heatCellH + heatGap);
+        const level = cell.inMonth ? heatLevel(cell.stat.minutes, gridPeak) : 0;
+        fillRound(
+          ctx,
+          x,
+          y,
+          cellW,
+          heatCellH,
+          14,
+          !cell.inMonth || level === 0 ? t.line : withAlpha(t.brand, HEAT_ALPHA[level]),
+        );
+        text(
+          ctx,
+          String(parseDay(cell.date).getDate()),
+          x + cellW / 2,
+          y + heatCellH / 2 + 9,
+          `500 24px ${FONT}`,
+          !cell.inMonth ? withAlpha("#94a3b8", 0.5) : level >= 3 ? "#ffffff" : t.muted,
+          "center",
+        );
+      });
+    });
+  }
 
   // ---- footer -------------------------------------------------------------
   text(
@@ -293,15 +435,6 @@ export async function buildStatsCard(focusByDay: FocusByDay): Promise<Blob> {
   });
 }
 
-function heatLevel(minutes: number, peak: number): number {
-  if (minutes <= 0 || peak <= 0) return 0;
-  const ratio = minutes / peak;
-  if (ratio <= 0.25) return 1;
-  if (ratio <= 0.5) return 2;
-  if (ratio <= 0.75) return 3;
-  return 4;
-}
-
 const blobToBase64 = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -318,8 +451,11 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
  * In the desktop app the user picks a path; in a plain browser the image opens
  * in a new tab so the feature can still be exercised during development.
  */
-export async function exportStatsImage(focusByDay: FocusByDay): Promise<string | null> {
-  const blob = await buildStatsCard(focusByDay);
+export async function exportStatsImage(
+  focusByDay: FocusByDay,
+  range: ExportRange = "week",
+): Promise<string | null> {
+  const blob = await buildStatsCard(focusByDay, range);
 
   if (!isTauri()) {
     window.open(URL.createObjectURL(blob), "_blank");
@@ -331,9 +467,10 @@ export async function exportStatsImage(focusByDay: FocusByDay): Promise<string |
     import("@tauri-apps/api/core"),
   ]);
 
+  const suffix = range === "week" ? "7d" : range === "month" ? "30d" : "12m";
   const path = await save({
     title: "导出专注统计图片",
-    defaultPath: `focusday-stats-${todayISO()}.png`,
+    defaultPath: `focusday-stats-${suffix}-${todayISO()}.png`,
     filters: [{ name: "PNG 图片", extensions: ["png"] }],
   });
   if (!path) return null;

@@ -1,6 +1,7 @@
 import type {
   Accent,
   AppState,
+  CountdownRepeat,
   DayStat,
   FocusByDay,
   Point,
@@ -164,6 +165,20 @@ export function rolloverRepeats(todos: Todo[]): Todo[] {
   );
 }
 
+const COUNTDOWN_REPEATS = ["none", "weekly", "monthly", "yearly"] as const;
+
+/**
+ * Reads a countdown's recurrence, migrating the `yearly: boolean` flag used by
+ * v0.6 and earlier.
+ */
+function sanitizeCountdownRepeat(raw: unknown): CountdownRepeat {
+  const value = (raw ?? {}) as { repeat?: unknown; yearly?: unknown };
+  if (COUNTDOWN_REPEATS.includes(value.repeat as never)) {
+    return value.repeat as CountdownRepeat;
+  }
+  return value.yearly === true ? "yearly" : "none";
+}
+
 /** Keeps only well-formed `YYYY-MM-DD` -> { minutes, count } entries. */
 function sanitizeFocusByDay(value: unknown): FocusByDay {
   if (!value || typeof value !== "object") return {};
@@ -216,7 +231,10 @@ export function sanitizeState(input: unknown): AppState {
   const merged: AppState = {
     todos,
     tags,
-    countdowns: Array.isArray(raw.countdowns) ? raw.countdowns : [],
+    countdowns: (Array.isArray(raw.countdowns) ? raw.countdowns : []).map((entry) => ({
+      ...entry,
+      repeat: sanitizeCountdownRepeat(entry),
+    })),
     settings: {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),
       shortMin: asNumber(settings.shortMin, defaultSettings.shortMin),

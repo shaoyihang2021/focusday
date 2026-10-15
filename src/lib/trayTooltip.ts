@@ -1,33 +1,54 @@
 import { useAppStore } from "../store/useAppStore";
-import { computeRemaining, formatClock, modeLabel } from "./timer";
+import { computeRemaining, durationFor, formatClock, modeLabel } from "./timer";
 import { todayStat } from "./stats";
-import { updateTrayTooltip } from "./widget";
+import { setTrayProgress, updateTrayTooltip } from "./widget";
 
 const IDLE_TOOLTIP = "FocusDay · 番茄待办与倒数日";
 
+/** Current accent colour, so the tray ring matches the app theme. */
+const accentColor = (): string =>
+  getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#f74a2c";
+
 /**
- * Mirrors the live countdown into the tray icon's tooltip.
+ * Mirrors the timer into the system tray.
  *
- * Only the main window runs this, so the tooltip is updated exactly once per
- * second. The timer state itself does not change while running (the remaining
- * time is derived from `endAt`), which is why a plain interval is used here
- * instead of subscribing to the store.
+ * Only the main window runs this, so the tray is updated exactly once per
+ * second. The tooltip carries the exact remaining time, while the icon shows
+ * a progress ring plus the remaining minutes. The icon is only repainted when
+ * the displayed minute (or the timer state) actually changes, so the tray is
+ * not redrawn 60 times a minute for no visible difference.
  */
-export function startTrayTooltipSync(): () => void {
-  let last = "";
+export function startTraySync(): () => void {
+  let lastTooltip = "";
+  let lastIconKey = "";
 
   const tick = () => {
     const { timer, settings, focusByDay } = useAppStore.getState();
-    const text =
-      settings.trayCountdown && timer.running
-        ? `FocusDay · ${modeLabel(timer.mode)} ${formatClock(
-            computeRemaining(timer, Date.now()),
-          )} · 今日 ${todayStat(focusByDay).count} 🍅`
-        : IDLE_TOOLTIP;
+    const running = settings.trayCountdown && timer.running;
+    const remaining = computeRemaining(timer, Date.now());
+    const total = durationFor(timer.mode, settings);
+    const color = accentColor();
 
-    if (text === last) return;
-    last = text;
-    void updateTrayTooltip(text);
+    const tooltip = running
+      ? `FocusDay · ${modeLabel(timer.mode)} ${formatClock(remaining)} · 今日 ${
+          todayStat(focusByDay).count
+        } 🍅`
+      : IDLE_TOOLTIP;
+
+    if (tooltip !== lastTooltip) {
+      lastTooltip = tooltip;
+      void updateTrayTooltip(tooltip);
+    }
+
+    // The icon reflects the timer regardless of the tooltip preference.
+    const minutes = timer.running ? Math.max(0, Math.ceil(remaining / 60)) : null;
+    const fraction = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
+    const iconKey = `${minutes}|${timer.mode}|${color}`;
+
+    if (iconKey !== lastIconKey) {
+      lastIconKey = iconKey;
+      void setTrayProgress(minutes, fraction, color);
+    }
   };
 
   tick();

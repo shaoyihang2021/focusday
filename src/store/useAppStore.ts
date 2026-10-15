@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   AppState,
   Countdown,
+  CountdownRepeat,
   RepeatMode,
   Settings,
   SubStep,
@@ -31,7 +32,7 @@ export interface NewCountdown {
   date: string;
   color: string;
   note?: string;
-  yearly: boolean;
+  repeat: CountdownRepeat;
   pinned: boolean;
 }
 
@@ -180,16 +181,19 @@ export const useAppStore = create<Store>((set, get) => ({
 
   toggleStep: (todoId, stepId) =>
     set((s) => ({
-      todos: s.todos.map((t) =>
-        t.id === todoId
-          ? {
-              ...t,
-              steps: t.steps.map((step) =>
-                step.id === stepId ? { ...step, done: !step.done } : step,
-              ),
-            }
-          : t,
-      ),
+      todos: s.todos.map((t) => {
+        if (t.id !== todoId) return t;
+        const steps = t.steps.map((step) =>
+          step.id === stepId ? { ...step, done: !step.done } : step,
+        );
+        const stepNowDone = steps.find((step) => step.id === stepId)?.done ?? false;
+        const allDone = steps.length > 0 && steps.every((step) => step.done);
+
+        // Checking the last step completes the task; unchecking one reopens it.
+        if (allDone) return { ...t, steps, done: true, doneAt: Date.now() };
+        if (!stepNowDone && t.done) return { ...t, steps, done: false, doneAt: undefined };
+        return { ...t, steps };
+      }),
     })),
 
   removeStep: (todoId, stepId) =>
@@ -250,7 +254,7 @@ export const useAppStore = create<Store>((set, get) => ({
       color: input.color,
       note: input.note?.trim() || undefined,
       pinned: input.pinned,
-      yearly: input.yearly,
+      repeat: input.repeat,
       createdAt: Date.now(),
     };
     set((s) => ({ countdowns: [...s.countdowns, item] }));

@@ -3,10 +3,25 @@ import { CalendarDays, Pin, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import { countdownInfo, formatDate, formatDateWithWeekday, todayISO } from "../lib/date";
-import { Card, EmptyState, Toggle } from "./ui";
+import { Card, EmptyState, Segmented, Toggle } from "./ui";
 import { cn } from "../lib/cn";
+import type { CountdownRepeat } from "../types";
 
 const COLORS = ["#f74a2c", "#f59e0b", "#22a699", "#3b82f6", "#8b5cf6", "#ec4899"];
+
+const REPEATS: { value: CountdownRepeat; label: string }[] = [
+  { value: "none", label: "不重复" },
+  { value: "weekly", label: "每周" },
+  { value: "monthly", label: "每月" },
+  { value: "yearly", label: "每年" },
+];
+
+const REPEAT_LABEL: Record<CountdownRepeat, string> = {
+  none: "",
+  weekly: "每周",
+  monthly: "每月",
+  yearly: "每年",
+};
 
 export default function CountdownView() {
   const countdowns = useAppStore((s) => s.countdowns);
@@ -17,13 +32,13 @@ export default function CountdownView() {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayISO());
   const [color, setColor] = useState(COLORS[0]);
-  const [yearly, setYearly] = useState(false);
+  const [repeat, setRepeat] = useState<CountdownRepeat>("none");
   const [pinned, setPinned] = useState(false);
 
   const now = new Date(useNow(60_000));
 
   const items = useMemo(() => {
-    const enriched = countdowns.map((c) => ({ item: c, info: countdownInfo(c.date, c.yearly, now) }));
+    const enriched = countdowns.map((c) => ({ item: c, info: countdownInfo(c.date, c.repeat, now) }));
     return enriched.sort((a, b) => {
       if (a.item.pinned !== b.item.pinned) return a.item.pinned ? -1 : 1;
       const aFuture = a.info.upcoming;
@@ -35,10 +50,10 @@ export default function CountdownView() {
 
   const submit = () => {
     if (!title.trim() || !date) return;
-    addCountdown({ title, date, color, yearly, pinned });
+    addCountdown({ title, date, color, repeat, pinned });
     setTitle("");
     setDate(todayISO());
-    setYearly(false);
+    setRepeat("none");
     setPinned(false);
   };
 
@@ -95,11 +110,12 @@ export default function CountdownView() {
             <Plus size={16} /> 添加
           </button>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-8 gap-y-1 border-t border-line pt-1">
-          <div className="w-64">
-            <Toggle checked={yearly} onChange={setYearly} label="每年重复" hint="生日、纪念日等" />
+        <div className="mt-3 flex flex-wrap items-end gap-x-8 gap-y-3 border-t border-line pt-3">
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-ink">重复周期</p>
+            <Segmented options={REPEATS} value={repeat} onChange={setRepeat} />
           </div>
-          <div className="w-64">
+          <div className="w-56">
             <Toggle checked={pinned} onChange={setPinned} label="置顶显示" hint="同时展示在桌面小组件" />
           </div>
         </div>
@@ -128,8 +144,8 @@ export default function CountdownView() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
                   <p className="mt-0.5 text-[11px] text-muted">
-                    {formatDate(item.date)} · {info.weekday}
-                    {item.yearly ? " · 每年" : ""}
+                    {formatDate(info.nextDate)} · {info.weekday}
+                    {item.repeat === "none" ? "" : ` · ${REPEAT_LABEL[item.repeat]}`}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">

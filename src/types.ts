@@ -17,6 +17,9 @@ export type NoiseType = "off" | "white" | "pink" | "brown" | "rain" | "cafe";
 /** How often a todo repeats after being completed. */
 export type RepeatMode = "none" | "daily";
 
+/** Recurrence of a countdown event. */
+export type CountdownRepeat = "none" | "weekly" | "monthly" | "yearly";
+
 /** Logical (DPI independent) screen position. */
 export interface Point {
   x: number;
@@ -87,8 +90,8 @@ export interface Countdown {
   note?: string;
   /** Pinned events float to the top and are shown on the widget. */
   pinned: boolean;
-  /** If true, the event repeats every year (birthdays, anniversaries...). */
-  yearly: boolean;
+  /** How the event recurs after its date has passed. */
+  repeat: CountdownRepeat;
   createdAt: number;
 }
 

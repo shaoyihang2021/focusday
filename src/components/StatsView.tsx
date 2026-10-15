@@ -14,12 +14,18 @@ import { useAppStore } from "../store/useAppStore";
 import { lastDays, monthGrid, monthPeak, streakDays, todayStat, totals } from "../lib/stats";
 import { formatDate, formatMonth, parseDay, shortDate, todayISO, weekdayName } from "../lib/date";
 import { humanizeMinutes } from "../lib/timer";
-import { exportStatsImage } from "../lib/shareCard";
+import { exportStatsImage, type ExportRange } from "../lib/shareCard";
 import { isTauri } from "../lib/env";
-import { Card, EmptyState } from "./ui";
+import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
 
 const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
+
+const EXPORT_RANGES: { value: ExportRange; label: string }[] = [
+  { value: "week", label: "近 7 天" },
+  { value: "month", label: "近 30 天" },
+  { value: "year", label: "近 12 个月" },
+];
 
 /** Heat levels: 0 = none, then four steps scaled against the month's peak. */
 function heatLevel(minutes: number, peak: number): number {
@@ -83,6 +89,7 @@ export default function StatsView() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
+  const [exportRange, setExportRange] = useState<ExportRange>("week");
   const shown = useMemo(() => {
     const base = new Date();
     const d = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
@@ -114,7 +121,7 @@ export default function StatsView() {
     setExporting(true);
     setExportNote(null);
     try {
-      const path = await exportStatsImage(focusByDay);
+      const path = await exportStatsImage(focusByDay, exportRange);
       setExportNote(
         path ? `图片已保存到 ${path}` : isTauri() ? "已取消导出" : "已在新标签页打开生成的图片",
       );
@@ -127,19 +134,25 @@ export default function StatsView() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {exportNote ? (
-          <p className="min-w-0 flex-1 truncate text-[11px] text-muted">{exportNote}</p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void handleExport()}
-          disabled={exporting}
-          className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ImageDown size={14} />
-          {exporting ? "生成中…" : "导出图片"}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted">导出范围</span>
+          <Segmented options={EXPORT_RANGES} value={exportRange} onChange={setExportRange} />
+        </div>
+        <div className="flex min-w-0 items-center gap-3">
+          {exportNote ? (
+            <p className="min-w-0 max-w-xs truncate text-[11px] text-muted">{exportNote}</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={exporting}
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ImageDown size={14} />
+            {exporting ? "生成中…" : "导出图片"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

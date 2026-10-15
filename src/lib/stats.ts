@@ -96,3 +96,65 @@ export function monthGrid(
 /** Highest single-day minutes inside a month (used for heat levels). */
 export const monthPeak = (weeks: HeatCell[][]): number =>
   Math.max(0, ...weeks.flat().filter((c) => c.inMonth).map((c) => c.stat.minutes));
+
+export interface MonthBucket {
+  year: number;
+  month: number;
+  stat: DayStat;
+}
+
+/** Totals for the last `count` months, oldest first. */
+export function lastMonths(focusByDay: FocusByDay, count: number): MonthBucket[] {
+  const base = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const back = count - 1 - i;
+    const cursor = new Date(base.getFullYear(), base.getMonth() - back, 1);
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth() + 1;
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    let minutes = 0;
+    let sessions = 0;
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const stat = dayStat(focusByDay, dateKey(new Date(year, month - 1, day)));
+      minutes += stat.minutes;
+      sessions += stat.count;
+    }
+    return { year, month, stat: { minutes, count: sessions } };
+  });
+}
+
+/** Totals across an explicit list of date keys. */
+export function sumDates(focusByDay: FocusByDay, dates: string[]): DayStat {
+  return dates.reduce<DayStat>(
+    (acc, date) => {
+      const stat = dayStat(focusByDay, date);
+      return { minutes: acc.minutes + stat.minutes, count: acc.count + stat.count };
+    },
+    { minutes: 0, count: 0 },
+  );
+}
+
+/**
+ * Whole-year calendar grid, Monday-first and padded to full weeks, laid out
+ * column-per-week (GitHub contribution graph style).
+ */
+export function yearGrid(focusByDay: FocusByDay, year: number): HeatCell[][] {
+  const first = new Date(year, 0, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const totalCells = Math.ceil((lead + (isLeap ? 366 : 365)) / 7) * 7;
+
+  const weeks: HeatCell[][] = [];
+  for (let index = 0; index < totalCells; index += 1) {
+    if (index % 7 === 0) weeks.push([]);
+    const d = new Date(year, 0, index - lead + 1);
+    const date = dateKey(d);
+    weeks[weeks.length - 1].push({
+      date,
+      stat: dayStat(focusByDay, date),
+      inMonth: d.getFullYear() === year,
+    });
+  }
+  return weeks;
+}

@@ -63,6 +63,18 @@ export async function updateTrayTooltip(text: string): Promise<void> {
 }
 
 /**
+ * Paints the tray icon with the focus progress.
+ * Passing `minutes = null` restores the default application icon.
+ */
+export async function setTrayProgress(
+  minutes: number | null,
+  fraction: number,
+  color: string,
+): Promise<void> {
+  await invoke("set_tray_progress", { minutes, fraction, color });
+}
+
+/**
  * Registers the global shortcut that toggles the main window.
  * An empty accelerator unregisters it. Returns whether one is active.
  */

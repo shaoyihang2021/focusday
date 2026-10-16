@@ -11,8 +11,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { lastDays, monthGrid, monthPeak, streakDays, todayStat, totals } from "../lib/stats";
-import { formatDate, formatMonth, parseDay, shortDate, todayISO, weekdayName } from "../lib/date";
+import { monthGrid, monthPeak, rangeBars, streakDays, todayStat, totals, yearGrid } from "../lib/stats";
+import { formatDate, formatMonth, parseDay, todayISO, weekdayName } from "../lib/date";
 import { humanizeMinutes } from "../lib/timer";
 import { exportStatsImage, type ExportRange } from "../lib/shareCard";
 import { isTauri } from "../lib/env";
@@ -21,13 +21,25 @@ import { cn } from "../lib/cn";
 
 const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
 
-const EXPORT_RANGES: { value: ExportRange; label: string }[] = [
+const RANGES: { value: ExportRange; label: string }[] = [
   { value: "week", label: "近 7 天" },
   { value: "month", label: "近 30 天" },
   { value: "year", label: "近 12 个月" },
 ];
 
-/** Heat levels: 0 = none, then four steps scaled against the month's peak. */
+const RANGE_TITLE: Record<ExportRange, string> = {
+  week: "近 7 天专注时长",
+  month: "近 30 天专注时长",
+  year: "每月专注时长",
+};
+
+const RANGE_METRIC: Record<ExportRange, string> = {
+  week: "近 7 天专注",
+  month: "近 30 天专注",
+  year: "近 12 个月专注",
+};
+
+/** Heat levels: 0 = none, then four steps scaled against the range's peak. */
 function heatLevel(minutes: number, peak: number): number {
   if (minutes <= 0 || peak <= 0) return 0;
   const ratio = minutes / peak;
@@ -76,31 +88,49 @@ function Metric({
 export default function StatsView() {
   const focusByDay = useAppStore((s) => s.focusByDay);
 
-  const week = useMemo(() => lastDays(focusByDay, 7), [focusByDay]);
   const today = todayStat(focusByDay);
   const total = totals(focusByDay);
   const streak = streakDays(focusByDay);
-  const weekMinutes = week.reduce((sum, day) => sum + day.stat.minutes, 0);
-  const weekCount = week.reduce((sum, day) => sum + day.stat.count, 0);
-  const peak = Math.max(...week.map((day) => day.stat.minutes));
-  const activeDays = week.filter((day) => day.stat.count > 0).length;
 
-  // Month shown in the heatmap, as an offset in months from the current one.
+  // One time span drives the metrics, the bar chart, the heatmap and the export.
+  const [range, setRange] = useState<ExportRange>("week");
   const [monthOffset, setMonthOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
-  const [exportRange, setExportRange] = useState<ExportRange>("week");
+
+  const bars = useMemo(() => rangeBars(focusByDay, range), [focusByDay, range]);
+  const isYear = range === "year";
+  const unit = isYear ? "个月" : "天";
+  const rangeMinutes = bars.reduce((sum, bar) => sum + bar.minutes, 0);
+  const rangeCount = bars.reduce((sum, bar) => sum + bar.count, 0);
+  const activeBuckets = bars.filter((bar) => bar.minutes > 0).length;
+  const barPeak = Math.max(0, ...bars.map((bar) => bar.minutes));
+
+  // Month shown in the calendar heatmap (only used for the two day ranges).
   const shown = useMemo(() => {
     const base = new Date();
     const d = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
     return { year: d.getFullYear(), month: d.getMonth() + 1 };
   }, [monthOffset]);
-  const grid = useMemo(
-    () => monthGrid(focusByDay, shown.year, shown.month),
-    [focusByDay, shown.year, shown.month],
+  const monthCells = useMemo(
+    () => (isYear ? [] : monthGrid(focusByDay, shown.year, shown.month)),
+    [focusByDay, isYear, shown.year, shown.month],
   );
-  const gridPeak = monthPeak(grid);
-  const monthTotal = grid
+  const monthPeakMinutes = monthPeak(monthCells);
+  const monthTotal = monthCells
+    .flat()
+    .filter((cell) => cell.inMonth)
+    .reduce((sum, cell) => sum + cell.stat.minutes, 0);
+
+  const yearCells = useMemo(
+    () => (isYear ? yearGrid(focusByDay, new Date().getFullYear()) : []),
+    [focusByDay, isYear],
+  );
+  const yearPeakMinutes = Math.max(
+    0,
+    ...yearCells.flat().filter((cell) => cell.inMonth).map((cell) => cell.stat.minutes),
+  );
+  const yearTotal = yearCells
     .flat()
     .filter((cell) => cell.inMonth)
     .reduce((sum, cell) => sum + cell.stat.minutes, 0);
@@ -121,7 +151,7 @@ export default function StatsView() {
     setExporting(true);
     setExportNote(null);
     try {
-      const path = await exportStatsImage(focusByDay, exportRange);
+      const path = await exportStatsImage(focusByDay, range);
       setExportNote(
         path ? `图片已保存到 ${path}` : isTauri() ? "已取消导出" : "已在新标签页打开生成的图片",
       );
@@ -132,12 +162,15 @@ export default function StatsView() {
     }
   };
 
+  const dense = bars.length > 12;
+  const labelEvery = bars.length >= 28 ? 3 : 1;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted">导出范围</span>
-          <Segmented options={EXPORT_RANGES} value={exportRange} onChange={setExportRange} />
+          <span className="text-xs text-muted">统计范围</span>
+          <Segmented options={RANGES} value={range} onChange={setRange} />
         </div>
         <div className="flex min-w-0 items-center gap-3">
           {exportNote ? (
@@ -165,10 +198,10 @@ export default function StatsView() {
         />
         <Metric
           icon={<TrendingUp size={14} />}
-          label="近 7 天专注"
-          value={weekMinutes}
+          label={RANGE_METRIC[range]}
+          value={rangeMinutes}
           unit="分钟"
-          hint={`${activeDays} 天有专注 · ${weekCount} 个番茄`}
+          hint={`${activeBuckets} ${unit}有专注 · ${rangeCount} 个番茄`}
         />
         <Metric
           icon={<TimerIcon size={14} />}
@@ -189,57 +222,68 @@ export default function StatsView() {
       <Card className="fd-pop p-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-ink">近 7 天专注时长</h2>
+            <h2 className="text-sm font-semibold text-ink">{RANGE_TITLE[range]}</h2>
             <p className="mt-0.5 text-xs text-muted">
-              共 {humanizeMinutes(weekMinutes)}，单日最高 {humanizeMinutes(peak)}
+              共 {humanizeMinutes(rangeMinutes)}，{isYear ? "单月" : "单日"}最高{" "}
+              {humanizeMinutes(barPeak)}
             </p>
           </div>
           <p className="text-[11px] text-muted">单位：分钟</p>
         </div>
 
-        <div className="flex items-end gap-2 sm:gap-3">
-          {week.map(({ date, stat }) => {
-            const isToday = date === todayISO();
-            const ratio = peak > 0 ? stat.minutes / peak : 0;
-            const isBest = peak > 0 && stat.minutes === peak && stat.minutes > 0;
+        <div className={cn("flex items-end", dense ? "gap-1" : "gap-2 sm:gap-3")}>
+          {bars.map((bar, index) => {
+            const ratio = barPeak > 0 ? bar.minutes / barPeak : 0;
+            const isBest = barPeak > 0 && bar.minutes === barPeak;
+            const title = isYear
+              ? `${bar.label} · ${bar.minutes} 分钟 · ${bar.count} 个番茄`
+              : `${bar.label} ${bar.sub} · ${bar.minutes} 分钟 · ${bar.count} 个番茄`;
             return (
-              <div key={date} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                <span
-                  className={cn(
-                    "text-[11px] font-semibold tabular-nums",
-                    stat.minutes > 0 ? "text-ink" : "text-muted/60",
-                  )}
-                >
-                  {stat.minutes}
-                </span>
+              <div key={bar.key} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                {!dense ? (
+                  <span
+                    className={cn(
+                      "text-[11px] font-semibold tabular-nums",
+                      bar.minutes > 0 ? "text-ink" : "text-muted/60",
+                    )}
+                  >
+                    {bar.minutes}
+                  </span>
+                ) : null}
 
                 <div
                   className={cn(
                     "relative flex h-32 w-full items-end overflow-hidden rounded-lg",
                     "bg-black/[0.045] dark:bg-white/[0.06]",
-                    isToday && "ring-1 ring-brand/30",
+                    bar.emphasis && "ring-1 ring-brand/30",
                   )}
-                  title={`${weekdayName(date)} ${formatDate(date)} · ${stat.minutes} 分钟 · ${stat.count} 个番茄`}
+                  title={title}
                 >
                   <div
                     className={cn(
                       "w-full rounded-t-md transition-[height] duration-500",
-                      isToday ? "bg-brand" : isBest ? "bg-brand/70" : "bg-brand/45",
+                      bar.emphasis ? "bg-brand" : isBest ? "bg-brand/70" : "bg-brand/45",
                     )}
                     style={{ height: `${ratio * 100}%` }}
                   />
                 </div>
 
                 <div className="text-center">
-                  <p
-                    className={cn(
-                      "text-[11px] leading-tight",
-                      isToday ? "font-semibold text-brand" : "text-muted",
-                    )}
-                  >
-                    {weekdayName(date)}
-                  </p>
-                  <p className="text-[10px] tabular-nums text-muted/80">{shortDate(date)}</p>
+                  {index % labelEvery === 0 ? (
+                    <>
+                      <p
+                        className={cn(
+                          "text-[11px] leading-tight whitespace-nowrap",
+                          bar.emphasis ? "font-semibold text-brand" : "text-muted",
+                        )}
+                      >
+                        {bar.label}
+                      </p>
+                      {range === "week" ? (
+                        <p className="text-[10px] tabular-nums text-muted/80">{bar.sub}</p>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
               </div>
             );
@@ -247,84 +291,150 @@ export default function StatsView() {
         </div>
       </Card>
 
-      <Card className="fd-pop p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">{formatMonth(shown.year, shown.month)} 专注热力图</h2>
-            <p className="mt-0.5 text-xs text-muted">本月共 {humanizeMinutes(monthTotal)}</p>
+      {isYear ? (
+        <Card className="fd-pop p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-ink">
+                {new Date().getFullYear()}年 专注热力图
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">全年共 {humanizeMinutes(yearTotal)}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setMonthOffset((v) => v - 1)}
-              title="上个月"
-              className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink"
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMonthOffset(0)}
-              disabled={monthOffset === 0}
-              className="rounded-lg border border-line bg-card px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              本月
-            </button>
-            <button
-              type="button"
-              onClick={() => setMonthOffset((v) => Math.min(0, v + 1))}
-              disabled={monthOffset === 0}
-              title="下个月"
-              className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
 
-        <div>
-          <div className="mb-1 grid grid-cols-7 gap-1">
-            {WEEK_HEAD.map((label) => (
-              <div key={label} className="text-center text-[10px] text-muted">
-                周{label}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col gap-1">
-            {grid.map((weekRow, index) => (
-              <div key={index} className="grid grid-cols-7 gap-1">
-                {weekRow.map((cell) => {
-                  const level = cell.inMonth ? heatLevel(cell.stat.minutes, gridPeak) : 0;
-                  const isToday = cell.date === todayISO();
+          <div className="overflow-x-auto pb-1">
+            <div className="w-max">
+              <div className="flex gap-[3px] pb-1">
+                {yearCells.map((week, index) => {
+                  const first = parseDay(week[0].date);
+                  const label = first.getDate() <= 7 ? `${first.getMonth() + 1}月` : "";
                   return (
-                    <div
-                      key={cell.date}
-                      title={`${formatDate(cell.date)} ${weekdayName(cell.date)} · ${cell.stat.minutes} 分钟 · ${cell.stat.count} 个番茄`}
-                      className={cn(
-                        "flex h-8 items-center justify-center rounded-md text-[10px] tabular-nums transition-colors",
-                        cell.inMonth ? HEAT_CLASS[level] : "bg-black/[0.025] dark:bg-white/[0.03]",
-                        !cell.inMonth && "text-muted/50",
-                        cell.inMonth && level >= 3 && "text-white/95",
-                        isToday && "ring-1 ring-brand",
-                      )}
-                    >
-                      {parseDay(cell.date).getDate()}
+                    <div key={index} className="w-3.5 shrink-0">
+                      <span className="block whitespace-nowrap text-[10px] text-muted">
+                        {label}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-            ))}
+              <div className="flex gap-[3px]">
+                {yearCells.map((week, colIndex) => (
+                  <div key={colIndex} className="flex shrink-0 flex-col gap-[3px]">
+                    {week.map((cell) => {
+                      const level = cell.inMonth
+                        ? heatLevel(cell.stat.minutes, yearPeakMinutes)
+                        : 0;
+                      const isToday = cell.date === todayISO();
+                      return (
+                        <div
+                          key={cell.date}
+                          title={`${formatDate(cell.date)} ${weekdayName(cell.date)} · ${cell.stat.minutes} 分钟 · ${cell.stat.count} 个番茄`}
+                          className={cn(
+                            "h-3.5 w-3.5 rounded-[3px] transition-colors",
+                            cell.inMonth ? HEAT_CLASS[level] : "bg-transparent",
+                            isToday && "ring-1 ring-brand",
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
-          <span>少</span>
-          {HEAT_CLASS.map((cls, level) => (
-            <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
-          ))}
-          <span>多</span>
-        </div>
-      </Card>
+          <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
+            <span>少</span>
+            {HEAT_CLASS.map((cls, level) => (
+              <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
+            ))}
+            <span>多</span>
+          </div>
+        </Card>
+      ) : (
+        <Card className="fd-pop p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-ink">
+                {formatMonth(shown.year, shown.month)} 专注热力图
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">本月共 {humanizeMinutes(monthTotal)}</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setMonthOffset((v) => v - 1)}
+                title="上个月"
+                className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonthOffset(0)}
+                disabled={monthOffset === 0}
+                className="rounded-lg border border-line bg-card px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                本月
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonthOffset((v) => Math.min(0, v + 1))}
+                disabled={monthOffset === 0}
+                title="下个月"
+                className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 grid grid-cols-7 gap-1">
+              {WEEK_HEAD.map((label) => (
+                <div key={label} className="text-center text-[10px] text-muted">
+                  周{label}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1">
+              {monthCells.map((weekRow, index) => (
+                <div key={index} className="grid grid-cols-7 gap-1">
+                  {weekRow.map((cell) => {
+                    const level = cell.inMonth
+                      ? heatLevel(cell.stat.minutes, monthPeakMinutes)
+                      : 0;
+                    const isToday = cell.date === todayISO();
+                    return (
+                      <div
+                        key={cell.date}
+                        title={`${formatDate(cell.date)} ${weekdayName(cell.date)} · ${cell.stat.minutes} 分钟 · ${cell.stat.count} 个番茄`}
+                        className={cn(
+                          "flex h-8 items-center justify-center rounded-md text-[10px] tabular-nums transition-colors",
+                          cell.inMonth ? HEAT_CLASS[level] : "bg-black/[0.025] dark:bg-white/[0.03]",
+                          !cell.inMonth && "text-muted/50",
+                          cell.inMonth && level >= 3 && "text-white/95",
+                          isToday && "ring-1 ring-brand",
+                        )}
+                      >
+                        {parseDay(cell.date).getDate()}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
+            <span>少</span>
+            {HEAT_CLASS.map((cls, level) => (
+              <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
+            ))}
+            <span>多</span>
+          </div>
+        </Card>
+      )}
 
       <p className="text-center text-[11px] text-muted">
         专注记录保存在本地，可在「设置 → 数据」中导出备份

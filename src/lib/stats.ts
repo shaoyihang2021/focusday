@@ -1,5 +1,5 @@
 import type { DayStat, FocusByDay } from "../types";
-import { dateKey, parseDay, todayISO } from "./date";
+import { dateKey, parseDay, shortDate, todayISO, weekdayName } from "./date";
 
 const EMPTY: DayStat = { minutes: 0, count: 0 };
 
@@ -157,4 +157,45 @@ export function yearGrid(focusByDay: FocusByDay, year: number): HeatCell[][] {
     });
   }
   return weeks;
+}
+
+/** Time span shared by the in-page charts and the exported share card. */
+export type StatsRange = "week" | "month" | "year";
+
+/** One column of the bar chart. Days for 7/30 day ranges, months for a year. */
+export interface RangeBar {
+  key: string;
+  label: string;
+  sub: string;
+  minutes: number;
+  count: number;
+  /** The bar that gets the accent treatment (today / current month). */
+  emphasis: boolean;
+}
+
+/**
+ * Builds the bar chart buckets for a range. Day ranges label each bar with the
+ * weekday, the year range with the month name, so both the on-screen chart and
+ * the exported image stay identical.
+ */
+export function rangeBars(focusByDay: FocusByDay, range: StatsRange): RangeBar[] {
+  if (range === "year") {
+    const now = new Date();
+    return lastMonths(focusByDay, 12).map((bucket) => ({
+      key: `${bucket.year}-${bucket.month}`,
+      label: `${bucket.month}月`,
+      sub: `${bucket.year}`,
+      minutes: bucket.stat.minutes,
+      count: bucket.stat.count,
+      emphasis: bucket.year === now.getFullYear() && bucket.month === now.getMonth() + 1,
+    }));
+  }
+  return lastDays(focusByDay, range === "week" ? 7 : 30).map((day) => ({
+    key: day.date,
+    label: weekdayName(day.date),
+    sub: shortDate(day.date),
+    minutes: day.stat.minutes,
+    count: day.stat.count,
+    emphasis: day.date === todayISO(),
+  }));
 }

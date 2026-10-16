@@ -18,7 +18,7 @@ export type NoiseType = "off" | "white" | "pink" | "brown" | "rain" | "cafe";
 export type RepeatMode = "none" | "daily";
 
 /** Recurrence of a countdown event. */
-export type CountdownRepeat = "none" | "weekly" | "monthly" | "yearly";
+export type CountdownRepeat = "none" | "weekly" | "monthly" | "yearly" | "custom";
 
 /** Logical (DPI independent) screen position. */
 export interface Point {
@@ -92,6 +92,8 @@ export interface Countdown {
   pinned: boolean;
   /** How the event recurs after its date has passed. */
   repeat: CountdownRepeat;
+  /** Days between occurrences, only used when `repeat` is `custom`. */
+  intervalDays?: number;
   createdAt: number;
 }
 
@@ -118,6 +120,8 @@ export interface Settings {
   widgetPos: Point | null;
   /** Ambient noise played while the timer runs. */
   noise: NoiseType;
+  /** Silence FocusDay's own alerts while a work session is running. */
+  focusDnd: boolean;
   /** Noise volume, 0 – 1. */
   noiseVolume: number;
   /** EQ: low-pass cutoff as 0 (deep, 200Hz) – 1 (bright, 16kHz). */

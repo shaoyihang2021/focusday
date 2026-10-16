@@ -22,7 +22,7 @@ export function Sidebar({ view, onChange }: Props) {
   const today = useAppStore((s) => todayStat(s.focusByDay).count);
   const openTodos = useAppStore((s) => s.todos.filter((t) => !t.done).length);
   const upcoming = useAppStore(
-    (s) => s.countdowns.filter((c) => countdownInfo(c.date, c.repeat).upcoming).length,
+    (s) => s.countdowns.filter((c) => countdownInfo(c).upcoming).length,
   );
 
   const badge: Partial<Record<View, number>> = {

@@ -33,6 +33,7 @@ export interface NewCountdown {
   color: string;
   note?: string;
   repeat: CountdownRepeat;
+  intervalDays?: number;
   pinned: boolean;
 }
 
@@ -225,9 +226,15 @@ export const useAppStore = create<Store>((set, get) => ({
 
   toggleTodo: (id) =>
     set((s) => ({
-      todos: s.todos.map((t) =>
-        t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? Date.now() : undefined } : t,
-      ),
+      todos: s.todos.map((t) => {
+        if (t.id !== id) return t;
+        const done = !t.done;
+        // A task with a checklist is "done" exactly when every step is done, so
+        // toggling either side keeps the two in sync.
+        const steps =
+          t.steps.length > 0 ? t.steps.map((step) => ({ ...step, done })) : t.steps;
+        return { ...t, done, doneAt: done ? Date.now() : undefined, steps };
+      }),
       timer:
         s.timer.activeTodoId === id && !s.todos.find((t) => t.id === id)?.done
           ? { ...s.timer, activeTodoId: null }
@@ -255,6 +262,7 @@ export const useAppStore = create<Store>((set, get) => ({
       note: input.note?.trim() || undefined,
       pinned: input.pinned,
       repeat: input.repeat,
+      intervalDays: input.intervalDays,
       createdAt: Date.now(),
     };
     set((s) => ({ countdowns: [...s.countdowns, item] }));
@@ -392,8 +400,11 @@ export const useAppStore = create<Store>((set, get) => ({
       },
     });
 
-    if (settings.sound) playChime();
-    if (settings.notify) {
+    // "专注时免打扰" 静默 FocusDay 自身在专注时段发出的提醒（提示音与系统通知）；
+    // 休息结束的提醒不属于专注时段，因此不受影响。
+    const silent = settings.focusDnd && finished === "work";
+    if (settings.sound && !silent) playChime();
+    if (settings.notify && !silent) {
       void notify(
         finished === "work" ? "专注结束 · 收获一颗番茄 🍅" : "休息结束 · 该回来啦 ☕️",
         finished === "work" ? "起身活动一下，休息也是生产力。" : "开始下一轮专注吧。",

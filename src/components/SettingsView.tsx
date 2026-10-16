@@ -4,6 +4,7 @@ import {
   Bell,
   Database,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
   Keyboard,
@@ -14,6 +15,7 @@ import {
   Upload,
   Waves,
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import { Card, Segmented, Stepper, Toggle } from "./ui";
@@ -128,6 +130,19 @@ export default function SettingsView() {
     });
   };
 
+  const handleOpenFocusSettings = async () => {
+    if (!tauri) {
+      setStatus("系统专注助手设置入口仅在桌面版可用");
+      return;
+    }
+    try {
+      await invoke("open_system_focus_settings");
+      setStatus("已打开系统「专注助手」设置，可按需手动开启免打扰");
+    } catch (err) {
+      setStatus(`打开失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const handleExport = async () => {
     try {
       const { todos, tags, countdowns, settings: s, timer, focusByDay } = useAppStore.getState();
@@ -213,6 +228,24 @@ export default function SettingsView() {
           label="系统通知"
           hint="结束提醒会以系统通知推送"
         />
+        <Toggle
+          checked={settings.focusDnd}
+          onChange={(v) => updateSettings({ focusDnd: v })}
+          label="专注时免打扰"
+          hint="专注进行中静默 FocusDay 自身的提示音与系统通知，主界面会显示「免打扰中」"
+        />
+        <Row
+          label="系统专注助手（勿扰）"
+          hint="Windows 未向第三方程序开放切换系统级免打扰的接口，因此这里只提供设置入口，需由你手动开启"
+        >
+          <button
+            type="button"
+            onClick={() => void handleOpenFocusSettings()}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-card px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+          >
+            <ExternalLink size={14} /> 打开系统设置
+          </button>
+        </Row>
         <Toggle
           checked={settings.trayCountdown}
           onChange={(v) => updateSettings({ trayCountdown: v })}
@@ -481,7 +514,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.7.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.8.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

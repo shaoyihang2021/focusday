@@ -32,6 +32,7 @@ export const defaultSettings: Settings = {
   widgetLocked: false,
   widgetPos: null,
   noise: "off",
+  focusDnd: false,
   noiseVolume: 0.3,
   noiseTone: 0.72,
   noiseBass: 0,
@@ -151,7 +152,9 @@ export const startOfTodayMs = (): number => {
 
 /**
  * Reopens repeating tasks that were finished on an earlier day, so a daily
- * habit shows up fresh again. Idempotent — safe to run on every load.
+ * habit shows up fresh again. Its checklist is reset too, keeping the
+ * "task done <=> all steps done" invariant intact. Idempotent — safe to run on
+ * every load.
  */
 export function rolloverRepeats(todos: Todo[]): Todo[] {
   const start = startOfTodayMs();
@@ -160,12 +163,21 @@ export function rolloverRepeats(todos: Todo[]): Todo[] {
     todo.done &&
     typeof todo.doneAt === "number" &&
     todo.doneAt < start
-      ? { ...todo, done: false, completed: 0, doneAt: undefined }
+      ? {
+          ...todo,
+          done: false,
+          completed: 0,
+          doneAt: undefined,
+          steps: todo.steps.map((step) => ({ ...step, done: false })),
+        }
       : todo,
   );
 }
 
-const COUNTDOWN_REPEATS = ["none", "weekly", "monthly", "yearly"] as const;
+const COUNTDOWN_REPEATS = ["none", "weekly", "monthly", "yearly", "custom"] as const;
+/** Guard rail for the custom recurrence interval. */
+export const MIN_INTERVAL_DAYS = 1;
+export const MAX_INTERVAL_DAYS = 3650;
 
 /**
  * Reads a countdown's recurrence, migrating the `yearly: boolean` flag used by
@@ -231,10 +243,13 @@ export function sanitizeState(input: unknown): AppState {
   const merged: AppState = {
     todos,
     tags,
-    countdowns: (Array.isArray(raw.countdowns) ? raw.countdowns : []).map((entry) => ({
-      ...entry,
-      repeat: sanitizeCountdownRepeat(entry),
-    })),
+    countdowns: (Array.isArray(raw.countdowns) ? raw.countdowns : []).map((entry) => {
+      const repeat = sanitizeCountdownRepeat(entry);
+      const intervalDays = Math.round(
+        Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, asNumber(entry.intervalDays, 1))),
+      );
+      return { ...entry, repeat, intervalDays };
+    }),
     settings: {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),
       shortMin: asNumber(settings.shortMin, defaultSettings.shortMin),
@@ -260,6 +275,7 @@ export function sanitizeState(input: unknown): AppState {
       noise: NOISE_TYPES.includes(settings.noise as never)
         ? (settings.noise as Settings["noise"])
         : defaultSettings.noise,
+      focusDnd: asBool(settings.focusDnd, defaultSettings.focusDnd),
       noiseVolume: Math.min(1, Math.max(0, asNumber(settings.noiseVolume, defaultSettings.noiseVolume))),
       noiseTone: Math.min(1, Math.max(0, asNumber(settings.noiseTone, defaultSettings.noiseTone))),
       noiseBass: Math.min(12, Math.max(-12, asNumber(settings.noiseBass, defaultSettings.noiseBass))),

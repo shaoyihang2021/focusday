@@ -354,6 +354,29 @@ fn write_png(path: String, base64: String) -> Result<(), String> {
     std::fs::write(&path, bytes).map_err(|e| e.to_string())
 }
 
+/// Opens the Windows "专注助手 / 勿扰" settings page.
+///
+/// Windows exposes no public API that lets a third-party app toggle system-wide
+/// Do Not Disturb, and writing the registry ourselves would be neither safe nor
+/// stable. So instead of pretending to control it, we only open the page and let
+/// the user switch it on deliberately.
+#[tauri::command]
+fn open_system_focus_settings() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // `start "" ms-settings:quiethours` opens the Focus assist page.
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", "ms-settings:quiethours"])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("系统专注助手设置入口仅支持 Windows".into())
+    }
+}
+
 /// Fully exits the app, closing tray and widget windows as well.
 #[tauri::command]
 fn quit_app(app: AppHandle) {
@@ -433,6 +456,7 @@ pub fn run() {
             write_backup,
             read_backup,
             write_png,
+            open_system_focus_settings,
             quit_app
         ])
         .setup(|app| {

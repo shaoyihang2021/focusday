@@ -1,4 +1,4 @@
-import type { CountdownRepeat } from "../types";
+import type { Countdown } from "../types";
 
 export const parseDay = (value: string): Date => {
   const [y, m, d] = value.split("-").map(Number);
@@ -67,33 +67,44 @@ function nextMonthly(today: Date, day: number): Date {
   return candidate;
 }
 
+/** Smallest stored-date + `interval * k` that is not before today. */
+function nextInterval(today: Date, base: Date, interval: number): Date {
+  const step = Math.max(1, Math.round(interval));
+  const elapsed = Math.floor((today.getTime() - base.getTime()) / 86_400_000);
+  if (elapsed <= 0) return base;
+  const periods = Math.ceil(elapsed / step);
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate() + periods * step);
+}
+
 /**
- * Days until the next occurrence of a date.
+ * Days until the next occurrence of a countdown.
  *
  * - `none`: the exact date, so past events keep a negative value.
  * - `yearly`: next time that month/day comes around (birthdays).
  * - `monthly`: next time that day-of-month comes around.
  * - `weekly`: next time that weekday comes around (today counts as 0).
+ * - `custom`: the stored date plus a whole number of `intervalDays` steps.
  */
 export function countdownInfo(
-  dateStr: string,
-  repeat: CountdownRepeat,
+  event: Pick<Countdown, "date" | "repeat" | "intervalDays">,
   now: Date = new Date(),
 ): CountdownInfo {
   const today = startOfDay(now);
-  const base = startOfDay(parseDay(dateStr));
+  const base = startOfDay(parseDay(event.date));
   let target = base;
 
-  if (repeat === "yearly") {
+  if (event.repeat === "yearly") {
     target = new Date(today.getFullYear(), base.getMonth(), base.getDate());
     if (target.getTime() < today.getTime()) {
       target = new Date(today.getFullYear() + 1, base.getMonth(), base.getDate());
     }
-  } else if (repeat === "monthly") {
+  } else if (event.repeat === "monthly") {
     target = nextMonthly(today, base.getDate());
-  } else if (repeat === "weekly") {
+  } else if (event.repeat === "weekly") {
     const offset = (base.getDay() - today.getDay() + 7) % 7;
     target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+  } else if (event.repeat === "custom") {
+    target = nextInterval(today, base, event.intervalDays ?? 1);
   }
 
   const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);

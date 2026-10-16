@@ -1,4 +1,4 @@
-import { Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lucide-react";
+import { BellOff, Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import { computeRemaining, durationFor, formatClock, modeLabel } from "../lib/timer";
@@ -33,11 +33,23 @@ export default function PomodoroView() {
   const activeTodo = todos.find((t) => t.id === timer.activeTodoId) ?? null;
   const openTodos = todos.filter((t) => !t.done);
   const statusText = timer.running ? "进行中" : remaining < total ? "已暂停" : "准备就绪";
+  // "专注时免打扰" only muffles FocusDay's own alerts during a running work round.
+  const dndActive = settings.focusDnd && timer.running && timer.mode === "work";
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_336px]">
       <Card className="fd-pop flex flex-col items-center gap-7 px-8 py-9">
-        <Segmented options={MODES} value={timer.mode} onChange={setMode} />
+        <div className="flex items-center gap-2">
+          <Segmented options={MODES} value={timer.mode} onChange={setMode} />
+          {dndActive ? (
+            <span
+              title="专注时免打扰已开启：本段专注期间 FocusDay 不会发出提示音或系统通知"
+              className="inline-flex items-center gap-1 rounded-lg bg-brand-soft px-2 py-1 text-[11px] font-medium text-brand"
+            >
+              <BellOff size={12} /> 免打扰中
+            </span>
+          ) : null}
+        </div>
 
         <Ring progress={progress}>
           <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">

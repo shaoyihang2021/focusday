@@ -1,14 +1,15 @@
 import type { FocusByDay } from "../types";
 import { isTauri } from "./env";
-import { formatDate, formatMonth, parseDay, todayISO, weekdayName } from "./date";
+import { formatDate, formatMonth, parseDay, todayISO } from "./date";
 import {
   lastDays,
-  lastMonths,
   monthGrid,
   monthPeak,
+  rangeBars,
   streakDays,
   sumDates,
   yearGrid,
+  type StatsRange,
 } from "./stats";
 
 /**
@@ -19,7 +20,7 @@ import {
  * PNG matches the app (including dark mode and the selected accent).
  */
 
-export type ExportRange = "week" | "month" | "year";
+export type ExportRange = StatsRange;
 
 const CARD_W = 1200;
 const PAD = 72;
@@ -127,32 +128,6 @@ const heatLevel = (minutes: number, peak: number): number => {
   return 4;
 };
 
-/** One bar in the exported chart. */
-interface Bar {
-  label: string;
-  sub: string;
-  minutes: number;
-  emphasis: boolean;
-}
-
-function buildBars(focusByDay: FocusByDay, range: ExportRange): Bar[] {
-  if (range === "year") {
-    return lastMonths(focusByDay, 12).map((bucket) => ({
-      label: `${bucket.month}月`,
-      sub: `${bucket.year}`,
-      minutes: bucket.stat.minutes,
-      emphasis: bucket.month === new Date().getMonth() + 1,
-    }));
-  }
-  const days = lastDays(focusByDay, range === "week" ? 7 : 30);
-  return days.map((day) => ({
-    label: weekdayName(day.date),
-    sub: `${parseDay(day.date).getMonth() + 1}/${parseDay(day.date).getDate()}`,
-    minutes: day.stat.minutes,
-    emphasis: day.date === todayISO(),
-  }));
-}
-
 /** Draws the whole card and resolves with a PNG blob. */
 export async function buildStatsCard(
   focusByDay: FocusByDay,
@@ -162,7 +137,7 @@ export async function buildStatsCard(
   const today = todayISO();
   const year = new Date().getFullYear();
 
-  const bars = buildBars(focusByDay, range);
+  const bars = rangeBars(focusByDay, range);
   const barPeak = Math.max(0, ...bars.map((bar) => bar.minutes));
 
   // Heatmap: a calendar month for week/month ranges, a whole-year grid for year.

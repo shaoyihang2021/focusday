@@ -3,9 +3,10 @@ import { CalendarDays, Pin, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import { countdownInfo, formatDate, formatDateWithWeekday, todayISO } from "../lib/date";
+import { MAX_INTERVAL_DAYS, MIN_INTERVAL_DAYS } from "../store/defaults";
 import { Card, EmptyState, Segmented, Toggle } from "./ui";
 import { cn } from "../lib/cn";
-import type { CountdownRepeat } from "../types";
+import type { Countdown, CountdownRepeat } from "../types";
 
 const COLORS = ["#f74a2c", "#f59e0b", "#22a699", "#3b82f6", "#8b5cf6", "#ec4899"];
 
@@ -14,6 +15,7 @@ const REPEATS: { value: CountdownRepeat; label: string }[] = [
   { value: "weekly", label: "每周" },
   { value: "monthly", label: "每月" },
   { value: "yearly", label: "每年" },
+  { value: "custom", label: "每 N 天" },
 ];
 
 const REPEAT_LABEL: Record<CountdownRepeat, string> = {
@@ -21,7 +23,15 @@ const REPEAT_LABEL: Record<CountdownRepeat, string> = {
   weekly: "每周",
   monthly: "每月",
   yearly: "每年",
+  custom: "",
 };
+
+/** `每 14 天` — the custom interval badge; other repeats use `REPEAT_LABEL`. */
+const repeatText = (item: Countdown): string =>
+  item.repeat === "custom" ? `每 ${item.intervalDays ?? MIN_INTERVAL_DAYS} 天` : REPEAT_LABEL[item.repeat];
+
+const clampInterval = (value: number): number =>
+  Math.round(Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, value || MIN_INTERVAL_DAYS)));
 
 export default function CountdownView() {
   const countdowns = useAppStore((s) => s.countdowns);
@@ -33,12 +43,13 @@ export default function CountdownView() {
   const [date, setDate] = useState(todayISO());
   const [color, setColor] = useState(COLORS[0]);
   const [repeat, setRepeat] = useState<CountdownRepeat>("none");
+  const [intervalDays, setIntervalDays] = useState(14);
   const [pinned, setPinned] = useState(false);
 
   const now = new Date(useNow(60_000));
 
   const items = useMemo(() => {
-    const enriched = countdowns.map((c) => ({ item: c, info: countdownInfo(c.date, c.repeat, now) }));
+    const enriched = countdowns.map((c) => ({ item: c, info: countdownInfo(c, now) }));
     return enriched.sort((a, b) => {
       if (a.item.pinned !== b.item.pinned) return a.item.pinned ? -1 : 1;
       const aFuture = a.info.upcoming;
@@ -50,7 +61,14 @@ export default function CountdownView() {
 
   const submit = () => {
     if (!title.trim() || !date) return;
-    addCountdown({ title, date, color, repeat, pinned });
+    addCountdown({
+      title,
+      date,
+      color,
+      repeat,
+      intervalDays: repeat === "custom" ? clampInterval(intervalDays) : undefined,
+      pinned,
+    });
     setTitle("");
     setDate(todayISO());
     setRepeat("none");
@@ -115,6 +133,26 @@ export default function CountdownView() {
             <p className="mb-1.5 text-sm font-medium text-ink">重复周期</p>
             <Segmented options={REPEATS} value={repeat} onChange={setRepeat} />
           </div>
+          {repeat === "custom" ? (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="fd-interval-days">
+                间隔天数
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="fd-interval-days"
+                  type="number"
+                  min={MIN_INTERVAL_DAYS}
+                  max={MAX_INTERVAL_DAYS}
+                  value={intervalDays}
+                  onChange={(e) => setIntervalDays(Number(e.target.value))}
+                  onBlur={() => setIntervalDays(clampInterval(intervalDays))}
+                  className="w-24 rounded-xl border border-line bg-solid px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-brand"
+                />
+                <span className="text-sm text-muted">天一次（1–3650）</span>
+              </div>
+            </div>
+          ) : null}
           <div className="w-56">
             <Toggle checked={pinned} onChange={setPinned} label="置顶显示" hint="同时展示在桌面小组件" />
           </div>
@@ -145,7 +183,7 @@ export default function CountdownView() {
                   <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
                   <p className="mt-0.5 text-[11px] text-muted">
                     {formatDate(info.nextDate)} · {info.weekday}
-                    {item.repeat === "none" ? "" : ` · ${REPEAT_LABEL[item.repeat]}`}
+                    {item.repeat === "none" ? "" : ` · ${repeatText(item)}`}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">

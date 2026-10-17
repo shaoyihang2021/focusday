@@ -2,6 +2,10 @@ import type { FocusByDay } from "../types";
 import { isTauri } from "./env";
 import { formatDate, formatMonth, parseDay, todayISO } from "./date";
 import {
+  RANGE_CHART_TITLE,
+  RANGE_LABEL,
+  WEEKDAY_LABELS,
+  heatLevel,
   lastDays,
   monthGrid,
   monthPeak,
@@ -25,14 +29,7 @@ export type ExportRange = StatsRange;
 const CARD_W = 1200;
 const PAD = 72;
 const FONT = '"PingFang SC","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif';
-const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
-
-const RANGE_LABEL: Record<ExportRange, string> = {
-  week: "近 7 天",
-  month: "近 30 天",
-  year: "近 12 个月",
-};
 
 interface Tokens {
   canvas: string;
@@ -117,15 +114,6 @@ const text = (
   ctx.textAlign = align;
   ctx.fillText(value, x, y);
   ctx.textAlign = "left";
-};
-
-const heatLevel = (minutes: number, peak: number): number => {
-  if (minutes <= 0 || peak <= 0) return 0;
-  const ratio = minutes / peak;
-  if (ratio <= 0.25) return 1;
-  if (ratio <= 0.5) return 2;
-  if (ratio <= 0.75) return 3;
-  return 4;
 };
 
 /** Draws the whole card and resolves with a PNG blob. */
@@ -224,7 +212,7 @@ export async function buildStatsCard(
   // ---- bars ---------------------------------------------------------------
   text(
     ctx,
-    range === "year" ? "每月专注时长" : range === "week" ? "近 7 天专注时长" : "近 30 天专注时长",
+    RANGE_CHART_TITLE[range],
     PAD,
     BARS_TOP + 26,
     `600 34px ${FONT}`,
@@ -329,7 +317,7 @@ export async function buildStatsCard(
       }
     });
   } else {
-    WEEK_HEAD.forEach((label, index) => {
+    WEEKDAY_LABELS.forEach((label, index) => {
       const cellW = (CARD_W - PAD * 2 - heatGap * 6) / 7;
       text(
         ctx,

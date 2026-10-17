@@ -11,7 +11,19 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { monthGrid, monthPeak, rangeBars, streakDays, todayStat, totals, yearGrid } from "../lib/stats";
+import {
+  RANGE_CHART_TITLE,
+  RANGE_LABEL,
+  WEEKDAY_LABELS,
+  heatLevel,
+  monthGrid,
+  monthPeak,
+  rangeBars,
+  streakDays,
+  todayStat,
+  totals,
+  yearGrid,
+} from "../lib/stats";
 import { formatDate, formatMonth, parseDay, todayISO, weekdayName } from "../lib/date";
 import { humanizeMinutes } from "../lib/timer";
 import { exportStatsImage, type ExportRange } from "../lib/shareCard";
@@ -19,35 +31,16 @@ import { isTauri } from "../lib/env";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
 
-const WEEK_HEAD = ["一", "二", "三", "四", "五", "六", "日"];
+const RANGES: { value: ExportRange; label: string }[] = (["week", "month", "year"] as const).map(
+  (value) => ({ value, label: RANGE_LABEL[value] }),
+);
 
-const RANGES: { value: ExportRange; label: string }[] = [
-  { value: "week", label: "近 7 天" },
-  { value: "month", label: "近 30 天" },
-  { value: "year", label: "近 12 个月" },
-];
-
-const RANGE_TITLE: Record<ExportRange, string> = {
-  week: "近 7 天专注时长",
-  month: "近 30 天专注时长",
-  year: "每月专注时长",
-};
-
+/** Metric label per range; the chart heading comes from the shared copy. */
 const RANGE_METRIC: Record<ExportRange, string> = {
   week: "近 7 天专注",
   month: "近 30 天专注",
   year: "近 12 个月专注",
 };
-
-/** Heat levels: 0 = none, then four steps scaled against the range's peak. */
-function heatLevel(minutes: number, peak: number): number {
-  if (minutes <= 0 || peak <= 0) return 0;
-  const ratio = minutes / peak;
-  if (ratio <= 0.25) return 1;
-  if (ratio <= 0.5) return 2;
-  if (ratio <= 0.75) return 3;
-  return 4;
-}
 
 const HEAT_CLASS = [
   "bg-black/[0.05] dark:bg-white/[0.06]",
@@ -56,6 +49,19 @@ const HEAT_CLASS = [
   "bg-brand/70",
   "bg-brand",
 ];
+
+/** The 少 → 多 swatch strip repeated under both heatmaps. */
+function HeatLegend() {
+  return (
+    <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
+      <span>少</span>
+      {HEAT_CLASS.map((cls, level) => (
+        <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
+      ))}
+      <span>多</span>
+    </div>
+  );
+}
 
 function Metric({
   icon,
@@ -222,7 +228,7 @@ export default function StatsView() {
       <Card className="fd-pop p-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-ink">{RANGE_TITLE[range]}</h2>
+            <h2 className="text-sm font-semibold text-ink">{RANGE_CHART_TITLE[range]}</h2>
             <p className="mt-0.5 text-xs text-muted">
               共 {humanizeMinutes(rangeMinutes)}，{isYear ? "单月" : "单日"}最高{" "}
               {humanizeMinutes(barPeak)}
@@ -343,13 +349,7 @@ export default function StatsView() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
-            <span>少</span>
-            {HEAT_CLASS.map((cls, level) => (
-              <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
-            ))}
-            <span>多</span>
-          </div>
+          <HeatLegend />
         </Card>
       ) : (
         <Card className="fd-pop p-6">
@@ -391,7 +391,7 @@ export default function StatsView() {
 
           <div>
             <div className="mb-1 grid grid-cols-7 gap-1">
-              {WEEK_HEAD.map((label) => (
+              {WEEKDAY_LABELS.map((label) => (
                 <div key={label} className="text-center text-[10px] text-muted">
                   周{label}
                 </div>
@@ -426,13 +426,7 @@ export default function StatsView() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-end gap-2 text-[10px] text-muted">
-            <span>少</span>
-            {HEAT_CLASS.map((cls, level) => (
-              <span key={level} className={cn("h-3 w-3 rounded-sm", cls)} />
-            ))}
-            <span>多</span>
-          </div>
+          <HeatLegend />
         </Card>
       )}
 

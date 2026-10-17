@@ -162,6 +162,36 @@ export function yearGrid(focusByDay: FocusByDay, year: number): HeatCell[][] {
 /** Time span shared by the in-page charts and the exported share card. */
 export type StatsRange = "week" | "month" | "year";
 
+/** Short human labels for each range, shared by the page and the export. */
+export const RANGE_LABEL: Record<StatsRange, string> = {
+  week: "近 7 天",
+  month: "近 30 天",
+  year: "近 12 个月",
+};
+
+/** Bar chart heading for each range (the page and the export use the same copy). */
+export const RANGE_CHART_TITLE: Record<StatsRange, string> = {
+  week: "近 7 天专注时长",
+  month: "近 30 天专注时长",
+  year: "每月专注时长",
+};
+
+/** Monday-first single-character weekday headers (Chinese convention). */
+export const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
+
+/**
+ * Maps minutes onto five heat steps (0 = none) scaled against the range's
+ * peak. Shared so the on-screen heatmaps and the exported card always agree.
+ */
+export function heatLevel(minutes: number, peak: number): number {
+  if (minutes <= 0 || peak <= 0) return 0;
+  const ratio = minutes / peak;
+  if (ratio <= 0.25) return 1;
+  if (ratio <= 0.5) return 2;
+  if (ratio <= 0.75) return 3;
+  return 4;
+}
+
 /** One column of the bar chart. Days for 7/30 day ranges, months for a year. */
 export interface RangeBar {
   key: string;

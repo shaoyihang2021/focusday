@@ -1,4 +1,5 @@
 import type { Accent, ThemeMode } from "../types";
+import { isTauri } from "./env";
 
 export function resolveDark(mode: ThemeMode): boolean {
   const prefersDark =
@@ -7,8 +8,24 @@ export function resolveDark(mode: ThemeMode): boolean {
   return mode === "dark" || (mode === "system" && prefersDark);
 }
 
+/**
+ * Tells the OS to paint the native window chrome (title bar, caption buttons)
+ * in the same scheme as the app, so dark mode stays dark all the way to the top.
+ */
+async function applyWindowTheme(dark: boolean): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().setTheme(dark ? "dark" : "light");
+  } catch (err) {
+    console.warn("[focusday] failed to set window theme", err);
+  }
+}
+
 export function applyTheme(mode: ThemeMode): void {
-  document.documentElement.classList.toggle("dark", resolveDark(mode));
+  const dark = resolveDark(mode);
+  document.documentElement.classList.toggle("dark", dark);
+  void applyWindowTheme(dark);
   try {
     localStorage.setItem("fd-theme", mode);
   } catch {

@@ -19,6 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import { Card, Segmented, Stepper, Toggle } from "./ui";
+import ManualSection from "./ManualSection";
 import {
   applyWidgetWindowSettings,
   setAutoLaunch,
@@ -507,6 +508,8 @@ export default function SettingsView() {
         </Row>
       </Section>
 
+      <ManualSection />
+
       {status ? (
         <p className="fd-pop rounded-xl border border-line bg-card px-4 py-2.5 text-xs break-all text-muted">
           {status}
@@ -514,7 +517,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.8.2 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.8.3 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

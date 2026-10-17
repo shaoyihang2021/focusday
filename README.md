@@ -173,14 +173,14 @@ npm run app:build
 
 产物位于 `src-tauri/target/release/bundle/`：
 
-- `nsis/FocusDay_0.8.2_x64-setup.exe`
-- `msi/FocusDay_0.8.2_x64_en-US.msi`
+- `nsis/FocusDay_0.8.3_x64-setup.exe`
+- `msi/FocusDay_0.8.3_x64_en-US.msi`
 
 也可以直接打 tag，让 GitHub Actions 自动完成 Windows 构建与 Release 发布：
 
 ```bash
-git tag v0.8.2
-git push origin v0.8.2
+git tag v0.8.3
+git push origin v0.8.3
 ```
 
 ## 📁 项目结构

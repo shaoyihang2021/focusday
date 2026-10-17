@@ -3,6 +3,7 @@ import type {
   AppState,
   Countdown,
   CountdownRepeat,
+  CountdownStyle,
   RepeatMode,
   Settings,
   SubStep,
@@ -34,6 +35,8 @@ export interface NewCountdown {
   note?: string;
   repeat: CountdownRepeat;
   intervalDays?: number;
+  style: CountdownStyle;
+  subtitleEn?: string;
   pinned: boolean;
 }
 
@@ -263,6 +266,8 @@ export const useAppStore = create<Store>((set, get) => ({
       pinned: input.pinned,
       repeat: input.repeat,
       intervalDays: input.intervalDays,
+      style: input.style,
+      subtitleEn: input.subtitleEn?.trim() || undefined,
       createdAt: Date.now(),
     };
     set((s) => ({ countdowns: [...s.countdowns, item] }));

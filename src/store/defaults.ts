@@ -2,6 +2,7 @@ import type {
   Accent,
   AppState,
   CountdownRepeat,
+  CountdownStyle,
   DayStat,
   FocusByDay,
   Point,
@@ -175,6 +176,16 @@ export function rolloverRepeats(todos: Todo[]): Todo[] {
 }
 
 const COUNTDOWN_REPEATS = ["none", "weekly", "monthly", "yearly", "custom"] as const;
+const COUNTDOWN_STYLES = ["classic", "wandering"] as const;
+
+/** Normalises a countdown card style, defaulting to the classic look. */
+function sanitizeCountdownStyle(raw: unknown): CountdownStyle {
+  const value = (raw ?? {}) as { style?: unknown };
+  return COUNTDOWN_STYLES.includes(value.style as never)
+    ? (value.style as CountdownStyle)
+    : "classic";
+}
+
 /** Guard rail for the custom recurrence interval. */
 export const MIN_INTERVAL_DAYS = 1;
 export const MAX_INTERVAL_DAYS = 3650;
@@ -248,7 +259,12 @@ export function sanitizeState(input: unknown): AppState {
       const intervalDays = Math.round(
         Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, asNumber(entry.intervalDays, 1))),
       );
-      return { ...entry, repeat, intervalDays };
+      const style = sanitizeCountdownStyle(entry);
+      const subtitleEn =
+        typeof entry.subtitleEn === "string" && entry.subtitleEn.trim()
+          ? entry.subtitleEn.trim()
+          : undefined;
+      return { ...entry, repeat, intervalDays, style, subtitleEn };
     }),
     settings: {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),

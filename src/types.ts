@@ -20,6 +20,9 @@ export type RepeatMode = "none" | "daily";
 /** Recurrence of a countdown event. */
 export type CountdownRepeat = "none" | "weekly" | "monthly" | "yearly" | "custom";
 
+/** Visual treatment of a countdown card. */
+export type CountdownStyle = "classic" | "wandering";
+
 /** Logical (DPI independent) screen position. */
 export interface Point {
   x: number;
@@ -94,6 +97,10 @@ export interface Countdown {
   repeat: CountdownRepeat;
   /** Days between occurrences, only used when `repeat` is `custom`. */
   intervalDays?: number;
+  /** Card look; `wandering` renders the sci-fi poster treatment. */
+  style: CountdownStyle;
+  /** Optional upper-case English line shown on the `wandering` card. */
+  subtitleEn?: string;
   createdAt: number;
 }
 

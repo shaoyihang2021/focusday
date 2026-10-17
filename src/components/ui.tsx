@@ -1,7 +1,16 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "../lib/cn";
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
+export function Card({
+  className,
+  children,
+  style,
+}: {
+  className?: string;
+  children: ReactNode;
+  /** Inline overrides for cards that need a fixed look (e.g. the poster skin). */
+  style?: CSSProperties;
+}) {
   return (
     <div
       className={cn(
@@ -9,6 +18,7 @@ export function Card({ className, children }: { className?: string; children: Re
         "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
         className,
       )}
+      style={style}
     >
       {children}
     </div>

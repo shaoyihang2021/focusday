@@ -39,10 +39,6 @@ export const formatDate = (dateStr: string): string => {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 };
 
-/** `2026年10月13日 周二` — used where the weekday adds useful context. */
-export const formatDateWithWeekday = (dateStr: string): string =>
-  `${formatDate(dateStr)} ${weekdayName(dateStr)}`;
-
 /** `10月13日` — compact label for chart axes. */
 export const shortDate = (dateStr: string): string => {
   const d = parseDay(dateStr);

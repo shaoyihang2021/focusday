@@ -37,7 +37,6 @@ export interface NewCountdown {
   intervalDays?: number;
   style: CountdownStyle;
   subtitleEn?: string;
-  pinned: boolean;
 }
 
 interface Actions {
@@ -263,7 +262,7 @@ export const useAppStore = create<Store>((set, get) => ({
       date: input.date,
       color: input.color,
       note: input.note?.trim() || undefined,
-      pinned: input.pinned,
+      pinned: false,
       repeat: input.repeat,
       intervalDays: input.intervalDays,
       style: input.style,
@@ -291,8 +290,11 @@ export const useAppStore = create<Store>((set, get) => ({
     const next: Settings = { ...settings, ...patch };
     const durationChanged =
       patch.workMin !== undefined || patch.shortMin !== undefined || patch.longMin !== undefined;
+    // Only mirror a new preset into the clock when the current round has not
+    // started yet. A paused mid-round session keeps its own length.
+    const untouched = timer.remaining === durationFor(timer.mode, settings);
     const nextTimer =
-      durationChanged && !timer.running
+      durationChanged && !timer.running && untouched
         ? { ...timer, remaining: durationFor(timer.mode, next) }
         : timer;
     set({ settings: next, timer: nextTimer });

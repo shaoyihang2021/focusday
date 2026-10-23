@@ -8,7 +8,7 @@ import CountdownView from "./components/CountdownView";
 import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
 import { useAppStore } from "./store/useAppStore";
-import { setWidgetVisible } from "./lib/widget";
+import { setWidgetVisible, syncCountdownWidgets } from "./lib/widget";
 import { isTauri } from "./lib/env";
 import type { View } from "./types";
 
@@ -27,6 +27,19 @@ export default function App() {
   const setTheme = useAppStore((s) => s.setTheme);
   const contentRef = useRef<HTMLDivElement>(null);
   const tauri = isTauri();
+
+  // One desktop window per pinned countdown; Rust opens/closes the difference.
+  const pinnedIds = useAppStore((s) =>
+    s.countdowns
+      .filter((c) => c.pinned)
+      .map((c) => c.id)
+      .join("|"),
+  );
+
+  useEffect(() => {
+    if (!tauri) return;
+    void syncCountdownWidgets(pinnedIds ? pinnedIds.split("|") : []);
+  }, [pinnedIds, tauri]);
 
   // Switching views should start at the top rather than keep the previous
   // scroll offset, which could hide headings and toolbars.

@@ -101,6 +101,8 @@ export interface Countdown {
   style: CountdownStyle;
   /** Optional upper-case English line shown on the `wandering` card. */
   subtitleEn?: string;
+  /** Last known position of this countdown's desktop widget (logical px). */
+  widgetPos?: Point;
   createdAt: number;
 }
 

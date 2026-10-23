@@ -19,6 +19,26 @@ const TRAY_ID: &str = "focusday-tray";
 const WIDGET_BASE_W: f64 = 324.0;
 const WIDGET_BASE_H: f64 = 216.0;
 
+/// Label prefix of the per-countdown desktop widget windows.
+const COUNTDOWN_PREFIX: &str = "cd-";
+const COUNTDOWN_BASE_W: f64 = 360.0;
+const COUNTDOWN_BASE_H: f64 = 214.0;
+
+/// Builds a valid Tauri window label from a countdown id.
+/// Tauri labels may only contain alphanumerics, `-`, `/`, `:`, `_` and `.`.
+fn countdown_label(id: &str) -> String {
+    let safe: String = id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect();
+    format!("{COUNTDOWN_PREFIX}{safe}")
+}
+
+/// Cascades freshly opened countdown widgets so they do not cover each other.
+fn cascade_position(index: usize) -> (f64, f64) {
+    (80.0 + index as f64 * 28.0, 120.0 + index as f64 * 28.0)
+}
+
 fn create_widget<R: Runtime>(app: &AppHandle<R>, visible: bool) -> Result<WebviewWindow<R>, String> {
     WebviewWindowBuilder::new(app, WIDGET_LABEL, WebviewUrl::App(WIDGET_ROUTE.into()))
         .title("FocusDay 小组件")
@@ -111,6 +131,56 @@ async fn set_widget_size(app: AppHandle, scale: f64) -> Result<(), String> {
 #[tauri::command]
 async fn focus_main_window(app: AppHandle) -> Result<(), String> {
     show_main(&app);
+    Ok(())
+}
+
+/// Opens one borderless desktop window per pinned countdown and closes the
+/// rest. Idempotent: the main window calls it whenever the pinned set changes.
+#[tauri::command]
+async fn sync_countdown_widgets(app: AppHandle, ids: Vec<String>) -> Result<(), String> {
+    use std::collections::HashSet;
+
+    let wanted: HashSet<String> = ids.iter().map(|id| countdown_label(id)).collect();
+
+    let existing: Vec<(String, WebviewWindow)> = app
+        .webview_windows()
+        .into_iter()
+        .filter(|(label, _)| label.starts_with(COUNTDOWN_PREFIX))
+        .collect();
+
+    // `destroy` bypasses close-request handlers, so a pin toggle can never be
+    // fought over by the widget window itself.
+    for (label, window) in &existing {
+        if !wanted.contains(label) {
+            let _ = window.destroy();
+        }
+    }
+
+    let mut index = existing.iter().filter(|(label, _)| wanted.contains(label)).count();
+    for id in ids {
+        let label = countdown_label(&id);
+        if app.get_webview_window(&label).is_some() {
+            continue;
+        }
+
+        let (x, y) = cascade_position(index);
+        index += 1;
+        let route = format!("index.html#/cd/{id}");
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(route.into()))
+            .title("FocusDay · 倒数日")
+            .inner_size(COUNTDOWN_BASE_W, COUNTDOWN_BASE_H)
+            .position(x, y)
+            .resizable(false)
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(false)
+            .visible(true)
+            .build()
+            .map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 
@@ -449,6 +519,7 @@ pub fn run() {
             set_widget_always_on_top,
             set_widget_size,
             focus_main_window,
+            sync_countdown_widgets,
             set_auto_launch,
             update_tray_tooltip,
             set_tray_progress,
@@ -562,6 +633,19 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn countdown_labels_are_prefixed_and_sanitized() {
+        assert_eq!(countdown_label("abc-123"), "cd-abc-123");
+        assert_eq!(countdown_label("a/b c"), "cd-a-b-c");
+        assert!(countdown_label("x y").starts_with("cd-"));
+    }
+
+    #[test]
+    fn countdown_widgets_cascade_by_28px() {
+        assert_eq!(cascade_position(0), (80.0, 120.0));
+        assert_eq!(cascade_position(2), (136.0, 176.0));
     }
 
     #[test]

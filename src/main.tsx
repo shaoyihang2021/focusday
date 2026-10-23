@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import WidgetApp from "./components/WidgetApp";
+import CountdownWidgetApp from "./components/CountdownWidgetApp";
 import { initStore, startEngine, useAppStore } from "./store/useAppStore";
 import { widgetScale } from "./store/defaults";
 import { ensureNotificationPermission } from "./lib/notify";
@@ -9,17 +10,18 @@ import { watchSystemTheme } from "./lib/theme";
 import { applyWidgetWindowSettings, registerCloseBehaviour, setAutoLaunch, setGlobalShortcut } from "./lib/widget";
 import { startTraySync } from "./lib/trayTooltip";
 import { syncNoise } from "./lib/noise";
-import { isWidgetWindow } from "./lib/env";
+import { countdownWidgetId, isWidgetWindow } from "./lib/env";
 import "./index.css";
 
 const widget = isWidgetWindow();
+const countdownId = countdownWidgetId();
 
 async function bootstrap(): Promise<void> {
   await initStore();
 
   watchSystemTheme(() => useAppStore.getState().settings.theme);
 
-  if (!widget) {
+  if (!widget && !countdownId) {
     // Only the main window owns session completion (counters, notifications).
     startEngine();
     void ensureNotificationPermission();
@@ -48,7 +50,15 @@ async function bootstrap(): Promise<void> {
   const container = document.getElementById("root");
   if (!container) return;
   createRoot(container).render(
-    <StrictMode>{widget ? <WidgetApp /> : <App />}</StrictMode>,
+    <StrictMode>
+      {countdownId ? (
+        <CountdownWidgetApp id={countdownId} />
+      ) : widget ? (
+        <WidgetApp />
+      ) : (
+        <App />
+      )}
+    </StrictMode>,
   );
 }
 

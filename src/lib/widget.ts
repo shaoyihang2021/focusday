@@ -17,6 +17,11 @@ export async function setWidgetVisible(visible: boolean): Promise<void> {
   await invoke("toggle_widget", { visible });
 }
 
+/** Opens / closes the desktop window of every pinned countdown (Tauri only). */
+export async function syncCountdownWidgets(ids: string[]): Promise<void> {
+  await invoke("sync_countdown_widgets", { ids });
+}
+
 /** Applies the always-on-top preference to the widget window. */
 export async function setWidgetAlwaysOnTop(value: boolean): Promise<void> {
   await invoke("set_widget_always_on_top", { value });

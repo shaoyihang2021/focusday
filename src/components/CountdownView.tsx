@@ -3,8 +3,14 @@ import { CalendarDays, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import { countdownInfo, formatDate, todayISO, type CountdownInfo } from "../lib/date";
-import { MAX_INTERVAL_DAYS, MIN_INTERVAL_DAYS } from "../store/defaults";
-import { Card, EmptyState, Segmented, Toggle } from "./ui";
+import {
+  MAX_INTERVAL_DAYS,
+  MIN_INTERVAL_DAYS,
+  clampInterval,
+  posterContent,
+  repeatText,
+} from "../lib/countdown";
+import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
 import type { Countdown, CountdownRepeat, CountdownStyle } from "../types";
 
@@ -18,62 +24,10 @@ const REPEATS: { value: CountdownRepeat; label: string }[] = [
   { value: "custom", label: "每 N 天" },
 ];
 
-const REPEAT_LABEL: Record<CountdownRepeat, string> = {
-  none: "",
-  weekly: "每周",
-  monthly: "每月",
-  yearly: "每年",
-  custom: "",
-};
-
 const STYLES: { value: CountdownStyle; label: string }[] = [
   { value: "classic", label: "经典" },
   { value: "wandering", label: "流浪地球" },
 ];
-
-/** `每 14 天` — the custom interval badge; other repeats use `REPEAT_LABEL`. */
-const repeatText = (item: Countdown): string =>
-  item.repeat === "custom" ? `每 ${item.intervalDays ?? MIN_INTERVAL_DAYS} 天` : REPEAT_LABEL[item.repeat];
-
-const clampInterval = (value: number): number =>
-  Math.round(Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, value || MIN_INTERVAL_DAYS)));
-
-interface PosterContent {
-  lead: string;
-  value: number;
-  unitCn: string;
-  /** Upper-case English lines printed under the number. */
-  lines: string[];
-}
-
-/**
- * Coarse copy for the sci-fi poster card: once the gap is a month or more it
- * counts in months (like the reference poster), otherwise in days.
- */
-function posterContent(item: Countdown, info: CountdownInfo): PosterContent {
-  const past = info.days < 0;
-  const abs = Math.abs(info.days);
-  const inMonths = abs >= 30;
-  const value = inMonths ? Math.max(1, Math.floor(abs / 30)) : abs;
-  const unitCn = inMonths ? "个月" : "天";
-  const unitEn = inMonths ? (value > 1 ? "MONTHS" : "MONTH") : value > 1 ? "DAYS" : "DAY";
-
-  const base =
-    info.days === 0
-      ? "IT'S TODAY"
-      : past
-        ? `${value} ${unitEn} AGO`
-        : item.subtitleEn
-          ? `IS STILL ${value} ${unitEn} OUT`
-          : `${value} ${unitEn} TO GO`;
-
-  return {
-    lead: past ? "已过去" : "还剩",
-    value,
-    unitCn,
-    lines: item.subtitleEn ? [item.subtitleEn.toUpperCase(), base] : [base],
-  };
-}
 
 /** Colour swatches, shared by the add form and the edit dialog. */
 function ColorPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
@@ -271,7 +225,6 @@ interface EditDraft {
   intervalDays: number;
   style: CountdownStyle;
   subtitleEn: string;
-  pinned: boolean;
 }
 
 /** Modal that edits every field of an existing countdown. */
@@ -285,7 +238,6 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
     intervalDays: item.intervalDays ?? 14,
     style: item.style,
     subtitleEn: item.subtitleEn ?? "",
-    pinned: item.pinned,
   }));
 
   useEffect(() => {
@@ -309,7 +261,6 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
       intervalDays: clampInterval(draft.intervalDays),
       style: draft.style,
       subtitleEn: draft.style === "wandering" ? draft.subtitleEn.trim() || undefined : undefined,
-      pinned: draft.pinned,
     });
     onClose();
   };
@@ -380,13 +331,6 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
               onStyle={(style) => patch({ style })}
               onSubtitleEn={(subtitleEn) => patch({ subtitleEn })}
             />
-
-            <Toggle
-              checked={draft.pinned}
-              onChange={(pinned) => patch({ pinned })}
-              label="钉在桌面"
-              hint="钉住的倒数日会显示在桌面小组件上"
-            />
           </div>
 
           <div className="mt-5 flex justify-end gap-2">
@@ -423,7 +367,6 @@ export default function CountdownView() {
   const [intervalDays, setIntervalDays] = useState(14);
   const [style, setStyle] = useState<CountdownStyle>("classic");
   const [subtitleEn, setSubtitleEn] = useState("");
-  const [pinned, setPinned] = useState(false);
   const [editing, setEditing] = useState<Countdown | null>(null);
 
   const now = new Date(useNow(60_000));
@@ -449,12 +392,10 @@ export default function CountdownView() {
       intervalDays: repeat === "custom" ? clampInterval(intervalDays) : undefined,
       style,
       subtitleEn: style === "wandering" ? subtitleEn : undefined,
-      pinned,
     });
     setTitle("");
     setDate(todayISO());
     setRepeat("none");
-    setPinned(false);
   };
 
   return (
@@ -508,16 +449,12 @@ export default function CountdownView() {
             onSubtitleEn={setSubtitleEn}
             onEnter={submit}
           />
-          <div className="w-56">
-            <Toggle
-              checked={pinned}
-              onChange={setPinned}
-              label="钉在桌面"
-              hint="钉住的倒数日会显示在桌面小组件上"
-            />
-          </div>
         </div>
       </Card>
+
+      <p className="text-[11px] text-muted">
+        点卡片右上角的图钉，会在桌面为这条倒数日单独生成一个小部件；再点一次即可收回。
+      </p>
 
       {items.length === 0 ? (
         <Card className="fd-pop">

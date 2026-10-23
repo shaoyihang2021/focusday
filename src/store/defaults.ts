@@ -14,6 +14,7 @@ import type {
   WidgetContent,
   WidgetSize,
 } from "../types";
+import { MAX_INTERVAL_DAYS, MIN_INTERVAL_DAYS } from "../lib/countdown";
 
 export const THEME_STORAGE_KEY = "fd-theme";
 
@@ -186,10 +187,6 @@ function sanitizeCountdownStyle(raw: unknown): CountdownStyle {
     : "classic";
 }
 
-/** Guard rail for the custom recurrence interval. */
-export const MIN_INTERVAL_DAYS = 1;
-export const MAX_INTERVAL_DAYS = 3650;
-
 /**
  * Reads a countdown's recurrence, migrating the `yearly: boolean` flag used by
  * v0.6 and earlier.
@@ -264,7 +261,14 @@ export function sanitizeState(input: unknown): AppState {
         typeof entry.subtitleEn === "string" && entry.subtitleEn.trim()
           ? entry.subtitleEn.trim()
           : undefined;
-      return { ...entry, repeat, intervalDays, style, subtitleEn };
+      return {
+        ...entry,
+        repeat,
+        intervalDays,
+        style,
+        subtitleEn,
+        widgetPos: asPoint(entry.widgetPos) ?? undefined,
+      };
     }),
     settings: {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),

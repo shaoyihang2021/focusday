@@ -1,15 +1,30 @@
 import { BellOff, Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
-import { computeRemaining, durationFor, formatClock, modeLabel } from "../lib/timer";
+import {
+  MINUTES_RANGE,
+  computeRemaining,
+  durationFor,
+  formatClock,
+  minutesFor,
+  minutesKeyFor,
+  modeLabel,
+} from "../lib/timer";
 import { todayStat } from "../lib/stats";
 import type { TimerMode } from "../types";
 import { Ring } from "./Ring";
-import { Card, Segmented } from "./ui";
+import { Card, Segmented, Stepper } from "./ui";
 import { cn } from "../lib/cn";
 
-const MODES: { value: TimerMode; label: string }[] = [
-  { value: "work", label: "专注" },
+type Phase = "focus" | "rest";
+
+const PHASES: { value: Phase; label: string }[] = [
+  { value: "focus", label: "专注" },
+  { value: "rest", label: "休息" },
+];
+
+/** Short and long breaks are presets inside the break phase. */
+const REST_PRESETS: { value: TimerMode; label: string }[] = [
   { value: "short", label: "短休息" },
   { value: "long", label: "长休息" },
 ];
@@ -23,6 +38,7 @@ export default function PomodoroView() {
   const skip = useAppStore((s) => s.skip);
   const setMode = useAppStore((s) => s.setMode);
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
+  const updateSettings = useAppStore((s) => s.updateSettings);
   const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(250);
@@ -35,20 +51,62 @@ export default function PomodoroView() {
   const statusText = timer.running ? "进行中" : remaining < total ? "已暂停" : "准备就绪";
   // "专注时免打扰" only muffles FocusDay's own alerts during a running work round.
   const dndActive = settings.focusDnd && timer.running && timer.mode === "work";
+  const phase: Phase = timer.mode === "work" ? "focus" : "rest";
+  const range = MINUTES_RANGE[timer.mode];
+
+  const changePhase = (next: Phase) => {
+    if (next === "focus") {
+      if (timer.mode !== "work") setMode("work");
+    } else if (timer.mode === "work") {
+      setMode("short");
+    }
+  };
+
+  // Compute the key explicitly so TypeScript keeps the Partial<Settings> shape.
+  const setMinutes = (value: number) => {
+    const key = minutesKeyFor(timer.mode);
+    updateSettings(
+      key === "shortMin" ? { shortMin: value } : key === "longMin" ? { longMin: value } : { workMin: value },
+    );
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_336px]">
       <Card className="fd-pop flex flex-col items-center gap-7 px-8 py-9">
-        <div className="flex items-center gap-2">
-          <Segmented options={MODES} value={timer.mode} onChange={setMode} />
-          {dndActive ? (
-            <span
-              title="专注时免打扰已开启：本段专注期间 FocusDay 不会发出提示音或系统通知"
-              className="inline-flex items-center gap-1 rounded-lg bg-brand-soft px-2 py-1 text-[11px] font-medium text-brand"
-            >
-              <BellOff size={12} /> 免打扰中
-            </span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Segmented options={PHASES} value={phase} onChange={changePhase} />
+            {dndActive ? (
+              <span
+                title="专注时免打扰已开启：本段专注期间 FocusDay 不会发出提示音或系统通知"
+                className="inline-flex items-center gap-1 rounded-lg bg-brand-soft px-2 py-1 text-[11px] font-medium text-brand"
+              >
+                <BellOff size={12} /> 免打扰中
+              </span>
+            ) : null}
+          </div>
+
+          {phase === "rest" ? (
+            <Segmented options={REST_PRESETS} value={timer.mode} onChange={setMode} />
           ) : null}
+
+          <div className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-1">
+            <span className="text-xs text-muted">{modeLabel(timer.mode)}时长</span>
+            {timer.running ? (
+              // While a round is running its length is fixed, so only show it.
+              <span className="text-sm font-semibold tabular-nums text-ink">
+                {minutesFor(timer.mode, settings)} 分钟
+              </span>
+            ) : (
+              <Stepper
+                value={minutesFor(timer.mode, settings)}
+                min={range.min}
+                max={range.max}
+                suffix="分钟"
+                onChange={setMinutes}
+              />
+            )}
+          </div>
         </div>
 
         <Ring progress={progress}>

@@ -171,8 +171,8 @@ export default function SettingsView() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <Section icon={<LayoutGrid size={16} />} title="时长设置">
-        <Row label="专注时长" hint="每个番茄的时长">
+      <Section icon={<LayoutGrid size={16} />} title="时长预设">
+        <Row label="专注" hint="专注阶段的默认时长">
           <Stepper
             value={settings.workMin}
             min={1}
@@ -181,7 +181,7 @@ export default function SettingsView() {
             onChange={(v) => updateSettings({ workMin: v })}
           />
         </Row>
-        <Row label="短休息">
+        <Row label="休息 · 短休息" hint="休息阶段的两个预设之一">
           <Stepper
             value={settings.shortMin}
             min={1}
@@ -190,7 +190,7 @@ export default function SettingsView() {
             onChange={(v) => updateSettings({ shortMin: v })}
           />
         </Row>
-        <Row label="长休息">
+        <Row label="休息 · 长休息">
           <Stepper
             value={settings.longMin}
             min={5}
@@ -517,7 +517,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.10.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.11.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

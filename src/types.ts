@@ -121,6 +121,10 @@ export interface Settings {
   widgetSize: WidgetSize;
   /** Widget visual style. */
   widgetSkin: WidgetSkin;
+  /** Data URL of a custom widget background photo, `null` for none. */
+  widgetBackground: string | null;
+  /** Darkening scrim drawn over the photo so labels stay readable, 0 – 0.8. */
+  widgetBackgroundDim: number;
   /** Which blocks the widget renders. */
   widgetShow: WidgetContent;
   /** Lock the widget so it can no longer be dragged by accident. */

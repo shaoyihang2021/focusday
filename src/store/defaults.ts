@@ -30,6 +30,8 @@ export const defaultSettings: Settings = {
   widgetOpacity: 0.92,
   widgetSize: "medium",
   widgetSkin: "glass",
+  widgetBackground: null,
+  widgetBackgroundDim: 0.4,
   widgetShow: { ring: true, today: true, countdown: true, todo: true },
   widgetLocked: false,
   widgetPos: null,
@@ -100,6 +102,12 @@ const asNumber = (value: unknown, fallback: number): number =>
 
 const asBool = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback;
+
+/** Accepts only inline image data URLs of a sane size. */
+const asImage = (value: unknown): string | null =>
+  typeof value === "string" && value.startsWith("data:image/") && value.length <= 4_000_000
+    ? value
+    : null;
 
 const asPoint = (value: unknown): Point | null => {
   if (!value || typeof value !== "object") return null;
@@ -289,6 +297,11 @@ export function sanitizeState(input: unknown): AppState {
       widgetSkin: WIDGET_SKINS.includes(settings.widgetSkin as never)
         ? (settings.widgetSkin as Settings["widgetSkin"])
         : defaultSettings.widgetSkin,
+      widgetBackground: asImage(settings.widgetBackground),
+      widgetBackgroundDim: Math.min(
+        0.8,
+        Math.max(0, asNumber(settings.widgetBackgroundDim, defaultSettings.widgetBackgroundDim)),
+      ),
       widgetShow: sanitizeWidgetShow(settings.widgetShow),
       widgetLocked: asBool(settings.widgetLocked, defaultSettings.widgetLocked),
       widgetPos: asPoint(settings.widgetPos),

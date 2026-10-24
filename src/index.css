@@ -178,6 +178,14 @@ body.fd-widget {
   border: 1px solid transparent;
 }
 
+/* Custom photo background: the image itself is the surface, so no tint here. */
+@utility fd-skin-photo {
+  background-color: #0b0b0c;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  /* Keeps small labels legible over busy, bright photos. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
 /**
  * Gradient used by every primary action button. Kept as a theme-agnostic
  * gradient so white labels stay readable in both light and dark mode and the

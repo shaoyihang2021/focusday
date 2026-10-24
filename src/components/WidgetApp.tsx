@@ -93,21 +93,37 @@ export default function WidgetApp() {
   const pool = pinned.length > 0 ? pinned : countdowns.filter((c) => countdownInfo(c).upcoming);
   const nearest = [...pool].sort((a, b) => countdownInfo(a).days - countdownInfo(b).days)[0];
   const nearestInfo = nearest ? countdownInfo(nearest) : null;
+  const photo = settings.widgetBackground;
 
   return (
     <div className="h-full w-full p-2">
       <div
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-2xl",
-          skinClass[settings.widgetSkin],
+          "relative flex h-full w-full flex-col overflow-hidden rounded-2xl",
+          photo ? "fd-skin-photo dark" : skinClass[settings.widgetSkin],
         )}
         style={{ opacity: settings.widgetOpacity }}
       >
+        {photo ? (
+          <>
+            <img
+              src={photo}
+              alt=""
+              draggable={false}
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundColor: `rgba(0, 0, 0, ${settings.widgetBackgroundDim})` }}
+            />
+          </>
+        ) : null}
         {/* drag handle — dragging is disabled while the widget is locked */}
         <div
           {...dragProps}
           className={cn(
-            "flex h-8 shrink-0 items-center gap-2 px-3.5 select-none",
+            "relative flex h-8 shrink-0 items-center gap-2 px-3.5 select-none",
             settings.widgetLocked ? "cursor-default" : "cursor-move",
           )}
         >
@@ -150,7 +166,7 @@ export default function WidgetApp() {
           </span>
         </div>
 
-        <div className="flex flex-1 items-center gap-3 px-3.5 pb-1">
+        <div className="relative flex flex-1 items-center gap-3 px-3.5 pb-1">
           {settings.widgetShow.ring ? (
             <Ring progress={progress} size={86} stroke={7}>
               <span className="text-lg font-bold tabular-nums tracking-tight text-ink">
@@ -212,7 +228,7 @@ export default function WidgetApp() {
           type="button"
           onClick={toggleRun}
           className={cn(
-            "mx-3.5 mb-3 flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-white transition-all",
+            "relative mx-3.5 mb-3 flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-white transition-all",
             "fd-primary shadow-md shadow-brand/25 hover:brightness-105 active:scale-[0.98]",
           )}
         >

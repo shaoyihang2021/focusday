@@ -414,6 +414,35 @@ fn read_backup(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Maps a file extension to the MIME type used in an inline data URL.
+fn image_mime(path: &str) -> Option<&'static str> {
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase());
+    match extension.as_deref() {
+        Some("png") => Some("image/png"),
+        Some("jpg") | Some("jpeg") => Some("image/jpeg"),
+        Some("webp") => Some("image/webp"),
+        Some("gif") => Some("image/gif"),
+        Some("bmp") => Some("image/bmp"),
+        _ => None,
+    }
+}
+
+/// Reads a user-picked image as a data URL so the widget can render it.
+#[tauri::command]
+fn read_image_data_url(path: String) -> Result<String, String> {
+    use base64::Engine as _;
+    let mime = image_mime(&path).ok_or("不支持的图片格式")?;
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    if bytes.len() > 20 * 1024 * 1024 {
+        return Err("图片过大，请选择小于 20MB 的文件".into());
+    }
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Ok(format!("data:{mime};base64,{encoded}"))
+}
+
 /// Writes a base64 encoded PNG (used by the stats share card export).
 #[tauri::command]
 fn write_png(path: String, base64: String) -> Result<(), String> {
@@ -526,6 +555,7 @@ pub fn run() {
             set_global_shortcut,
             write_backup,
             read_backup,
+            read_image_data_url,
             write_png,
             open_system_focus_settings,
             quit_app
@@ -646,6 +676,13 @@ mod tests {
     fn countdown_widgets_cascade_by_28px() {
         assert_eq!(cascade_position(0), (80.0, 120.0));
         assert_eq!(cascade_position(2), (136.0, 176.0));
+    }
+
+    #[test]
+    fn image_mime_follows_the_extension_case_insensitively() {
+        assert_eq!(image_mime("C:/pictures/cover.JPG"), Some("image/jpeg"));
+        assert_eq!(image_mime("cover.webp"), Some("image/webp"));
+        assert_eq!(image_mime("notes.txt"), None);
     }
 
     #[test]

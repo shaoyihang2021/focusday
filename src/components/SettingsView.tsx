@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  ImagePlus,
   Keyboard,
   LayoutGrid,
   Palette,
@@ -27,6 +28,7 @@ import {
   setWidgetVisible,
 } from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
+import { pickWidgetBackground } from "../lib/widgetBackground";
 import { isTauri } from "../lib/env";
 import { formatDate, todayISO } from "../lib/date";
 import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
@@ -166,6 +168,17 @@ export default function SettingsView() {
       setStatus("备份导入成功");
     } catch (err) {
       setStatus(`导入失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handlePickBackground = async () => {
+    try {
+      const background = await pickWidgetBackground();
+      if (!background) return;
+      updateSettings({ widgetBackground: background });
+      setStatus("小组件背景图片已更新");
+    } catch (err) {
+      setStatus(`设置背景图片失败：${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -425,6 +438,72 @@ export default function SettingsView() {
             onChange={(skin) => updateSettings({ widgetSkin: skin })}
           />
         </Row>
+        <div className="py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink">自定义背景图片</p>
+              <p className="mt-0.5 text-xs text-muted">
+                {settings.widgetBackground
+                  ? "图片仅保存在本地，并会随备份一起导出"
+                  : "选一张照片作为小组件背景，文字会自动转为浅色"}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {settings.widgetBackground ? (
+                <>
+                  <img
+                    src={settings.widgetBackground}
+                    alt="小组件背景预览"
+                    className="h-10 w-14 rounded-lg border border-line object-cover"
+                  />
+                  <button
+                    type="button"
+                    disabled={!tauri}
+                    onClick={() => void handlePickBackground()}
+                    className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    更换
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ widgetBackground: null })}
+                    className="rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-solid hover:text-ink"
+                  >
+                    移除
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!tauri}
+                  onClick={() => void handlePickBackground()}
+                  className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
+                >
+                  <ImagePlus size={14} /> 选择图片
+                </button>
+              )}
+            </div>
+          </div>
+          {settings.widgetBackground ? (
+            <div className="mt-3 flex items-center justify-between gap-4 border-t border-line pt-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-ink">背景遮罩</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  压暗图片以保证文字清晰，当前 {Math.round(settings.widgetBackgroundDim * 100)}%
+                </p>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={80}
+                step={2}
+                value={Math.round(settings.widgetBackgroundDim * 100)}
+                onChange={(e) => updateSettings({ widgetBackgroundDim: Number(e.target.value) / 100 })}
+                className="w-40"
+              />
+            </div>
+          ) : null}
+        </div>
         <div className="py-2">
           <p className="mb-1 text-sm font-medium text-ink">显示内容</p>
           <p className="mb-1 text-xs text-muted">选择小组件上要显示的信息</p>
@@ -517,7 +596,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.11.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.12.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

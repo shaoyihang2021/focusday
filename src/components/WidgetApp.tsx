@@ -4,7 +4,7 @@ import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import type { WidgetSkin } from "../types";
 import { useNow } from "../hooks/useNow";
-import { computeRemaining, durationFor, formatClock } from "../lib/timer";
+import { displaySeconds, formatClock, timerProgress } from "../lib/timer";
 import { countdownInfo } from "../lib/date";
 import { todayStat } from "../lib/stats";
 import {
@@ -24,13 +24,20 @@ export default function WidgetApp() {
   const countdowns = useAppStore((s) => s.countdowns);
   const toggleRun = useAppStore((s) => s.toggleRun);
   const updateSettings = useAppStore((s) => s.updateSettings);
-  const todayCount = useAppStore((s) => todayStat(s.focusByDay).count);
+  const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(500);
-  const remaining = computeRemaining(timer, now);
-  const total = durationFor(timer.mode, settings);
-  const progress = total > 0 ? 1 - remaining / total : 0;
+  const clock = displaySeconds(timer, now);
+  const progress = timerProgress(timer, settings, now);
   const isBreak = timer.mode !== "work";
+  const modeText =
+    timer.mode === "work"
+      ? timer.timing === "stopwatch"
+        ? "正计时"
+        : "专注"
+      : timer.mode === "short"
+        ? "短休息"
+        : "长休息";
 
   useEffect(() => {
     document.documentElement.style.background = "transparent";
@@ -170,16 +177,16 @@ export default function WidgetApp() {
           {settings.widgetShow.ring ? (
             <Ring progress={progress} size={86} stroke={7}>
               <span className="text-lg font-bold tabular-nums tracking-tight text-ink">
-                {formatClock(remaining)}
+                {formatClock(clock)}
               </span>
             </Ring>
           ) : (
             <div className="flex w-[86px] shrink-0 flex-col items-center">
               <span className="text-[10px] font-semibold tracking-wide text-muted">
-                {timer.mode === "work" ? "专注" : timer.mode === "short" ? "短休息" : "长休息"}
+                {modeText}
               </span>
               <span className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-ink">
-                {formatClock(remaining)}
+                {formatClock(clock)}
               </span>
             </div>
           )}
@@ -192,13 +199,17 @@ export default function WidgetApp() {
                 <Timer size={13} className="text-brand" />
               )}
               <span className="text-xs font-semibold text-ink">
-                {timer.mode === "work" ? "专注" : timer.mode === "short" ? "短休息" : "长休息"}
+                {modeText}
               </span>
               <span className={cn("text-[10px]", timer.running ? "fd-pulse text-brand" : "text-muted")}>
                 {timer.running ? "进行中" : "已暂停"}
               </span>
               {settings.widgetShow.today ? (
-                <span className="ml-auto text-[10px] text-muted">今日 {todayCount}🍅</span>
+                <span className="ml-auto text-[10px] text-muted">
+                  {settings.dailyGoalMin > 0
+                    ? `今日 ${today.minutes}/${settings.dailyGoalMin} 分`
+                    : `今日 ${today.count}🍅`}
+                </span>
               ) : null}
             </div>
 

@@ -2,6 +2,9 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type TimerMode = "work" | "short" | "long";
 
+/** How a focus round is measured. Breaks always use the countdown. */
+export type TimerTiming = "countdown" | "stopwatch";
+
 /** Preset sizes for the detached desktop widget window. */
 export type WidgetSize = "small" | "medium" | "large";
 
@@ -22,6 +25,9 @@ export type CountdownRepeat = "none" | "weekly" | "monthly" | "yearly" | "custom
 
 /** Visual treatment of a countdown card. */
 export type CountdownStyle = "classic" | "wandering";
+
+/** Whether a countdown date is interpreted as Gregorian or Chinese lunar. */
+export type CountdownCalendar = "solar" | "lunar";
 
 /** Logical (DPI independent) screen position. */
 export interface Point {
@@ -80,6 +86,8 @@ export interface Todo {
   steps: SubStep[];
   /** Whether the task reopens automatically on the next day. */
   repeat: RepeatMode;
+  /** Minutes of focus actually spent on this task. */
+  focusMinutes: number;
   createdAt: number;
   doneAt?: number;
 }
@@ -99,6 +107,10 @@ export interface Countdown {
   intervalDays?: number;
   /** Card look; `wandering` renders the sci-fi poster treatment. */
   style: CountdownStyle;
+  /** Whether `date` is Gregorian or Chinese lunar. */
+  calendar?: CountdownCalendar;
+  /** Set when the event falls in a leap lunar month. */
+  leapMonth?: boolean;
   /** Optional upper-case English line shown on the `wandering` card. */
   subtitleEn?: string;
   /** Last known position of this countdown's desktop widget (logical px). */
@@ -112,6 +124,9 @@ export interface Settings {
   longMin: number;
   /** Take a long break after every N finished pomodoros. */
   longEvery: number;
+  /** Daily / weekly focus goals in minutes; 0 disables the goal. */
+  dailyGoalMin: number;
+  weeklyGoalMin: number;
   autoStart: boolean;
   sound: boolean;
   notify: boolean;
@@ -158,11 +173,15 @@ export interface Settings {
 
 export interface TimerState {
   mode: TimerMode;
+  /** Countdown or open-ended stopwatch (only used by work rounds). */
+  timing: TimerTiming;
   running: boolean;
   /** Epoch ms when the current run ends. Only meaningful while running. */
   endAt: number | null;
   /** Seconds left while paused. */
   remaining: number;
+  /** Epoch ms when a stopwatch round was started/resumed. */
+  startedAt: number | null;
   /** Finished work rounds inside the current cycle (0..longEvery). */
   round: number;
   activeTodoId: string | null;

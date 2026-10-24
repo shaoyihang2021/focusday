@@ -22,10 +22,13 @@ import {
   streakDays,
   todayStat,
   totals,
+  weekStat,
   yearGrid,
 } from "../lib/stats";
 import { formatDate, formatMonth, parseDay, todayISO, weekdayName } from "../lib/date";
 import { humanizeMinutes } from "../lib/timer";
+import { goalProgress } from "../lib/goals";
+import { taskFocusRanking, tagFocusTotals, untaggedMinutes } from "../lib/focusBreakdown";
 import { exportStatsImage, type ExportRange } from "../lib/shareCard";
 import { isTauri } from "../lib/env";
 import { Card, EmptyState, Segmented } from "./ui";
@@ -91,12 +94,52 @@ function Metric({
   );
 }
 
+/** Horizontal bar used by the task / tag breakdown. */
+function FocusBar({
+  label,
+  minutes,
+  max,
+  color,
+}: {
+  label: string;
+  minutes: number;
+  max: number;
+  color?: string;
+}) {
+  const width = max > 0 ? Math.max(4, (minutes / max) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 truncate text-xs text-ink">{label}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-muted">
+          {humanizeMinutes(minutes)}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/[0.05] dark:bg-white/[0.08]">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${width}%`, backgroundColor: color ?? "var(--fd-brand)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function StatsView() {
   const focusByDay = useAppStore((s) => s.focusByDay);
+  const todos = useAppStore((s) => s.todos);
+  const tags = useAppStore((s) => s.tags);
+  const settings = useAppStore((s) => s.settings);
 
   const today = todayStat(focusByDay);
   const total = totals(focusByDay);
   const streak = streakDays(focusByDay);
+  const todayGoal = goalProgress(today.minutes, settings.dailyGoalMin);
+  const week = weekStat(focusByDay);
+  const weekGoal = goalProgress(week.minutes, settings.weeklyGoalMin);
+  const taskFocus = useMemo(() => taskFocusRanking(todos, 5), [todos]);
+  const tagFocus = useMemo(() => tagFocusTotals(todos, tags), [todos, tags]);
+  const untagged = useMemo(() => untaggedMinutes(todos), [todos]);
 
   // One time span drives the metrics, the bar chart, the heatmap and the export.
   const [range, setRange] = useState<ExportRange>("week");
@@ -141,7 +184,7 @@ export default function StatsView() {
     .filter((cell) => cell.inMonth)
     .reduce((sum, cell) => sum + cell.stat.minutes, 0);
 
-  if (total.count === 0) {
+  if (total.minutes === 0) {
     return (
       <Card className="fd-pop">
         <EmptyState
@@ -225,6 +268,47 @@ export default function StatsView() {
         />
       </div>
 
+      <Card className="fd-pop p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Target size={16} className="text-brand" />
+            专注目标
+          </div>
+          <p className="text-[11px] text-muted">可在「设置 → 专注目标」调整</p>
+        </div>
+        <div className="flex flex-col gap-4">
+          {[
+            { label: "今日", progress: todayGoal },
+            { label: "本周", progress: weekGoal },
+          ].map(({ label, progress }) => (
+            <div key={label}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs font-medium text-ink">{label}</span>
+                <span
+                  className={cn(
+                    "text-[11px] tabular-nums",
+                    progress.done ? "font-semibold text-brand" : "text-muted",
+                  )}
+                >
+                  {progress.goal > 0
+                    ? `${progress.minutes} / ${progress.goal} 分钟 · ${progress.percent}%`
+                    : "未设定目标"}
+                </span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/[0.05] dark:bg-white/[0.08]">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-[width] duration-500",
+                    progress.done ? "bg-brand" : "bg-brand/55",
+                  )}
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card className="fd-pop p-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -294,6 +378,57 @@ export default function StatsView() {
               </div>
             );
           })}
+        </div>
+      </Card>
+
+      <Card className="fd-pop p-6">
+        <div className="mb-5">
+          <h2 className="text-sm font-semibold text-ink">时间花在哪</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            番茄钟关联待办后，完成时会把分钟记到任务与标签上
+          </p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-[11px] font-medium tracking-wide text-muted">按任务</p>
+            {taskFocus.length === 0 ? (
+              <p className="text-xs leading-relaxed text-muted">还没有任务专注记录。</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {taskFocus.map((task) => (
+                  <FocusBar
+                    key={task.id}
+                    label={task.title}
+                    minutes={task.minutes}
+                    max={taskFocus[0].minutes}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-medium tracking-wide text-muted">
+              按标签（可重复计入）
+            </p>
+            {tagFocus.length === 0 ? (
+              <p className="text-xs leading-relaxed text-muted">还没有带标签的任务专注记录。</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {tagFocus.map((tag) => (
+                  <FocusBar
+                    key={tag.id}
+                    label={tag.name}
+                    minutes={tag.minutes}
+                    max={tagFocus[0].minutes}
+                    color={tag.color}
+                  />
+                ))}
+              </div>
+            )}
+            {untagged > 0 ? (
+              <p className="mt-3 text-[11px] text-muted">未打标签的任务共 {humanizeMinutes(untagged)}</p>
+            ) : null}
+          </div>
         </div>
       </Card>
 

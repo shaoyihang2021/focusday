@@ -1,11 +1,8 @@
 import { useAppStore } from "../store/useAppStore";
-import { computeRemaining, durationFor, formatClock, modeLabel } from "./timer";
+import { displaySeconds, formatClock, modeLabel, timerProgress } from "./timer";
 import { todayStat } from "./stats";
 import { setTrayProgress, updateTrayTooltip } from "./widget";
 
-const IDLE_TOOLTIP = "FocusDay · 番茄待办与倒数日";
-
-/** Current accent colour, so the tray ring matches the app theme. */
 const accentColor = (): string =>
   getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#f74a2c";
 
@@ -25,15 +22,20 @@ export function startTraySync(): () => void {
   const tick = () => {
     const { timer, settings, focusByDay } = useAppStore.getState();
     const running = settings.trayCountdown && timer.running;
-    const remaining = computeRemaining(timer, Date.now());
-    const total = durationFor(timer.mode, settings);
+    const seconds = displaySeconds(timer, Date.now());
+    const progress = timerProgress(timer, settings, Date.now());
     const color = accentColor();
+    const label =
+      timer.mode === "work" && timer.timing === "stopwatch" ? "正计时" : modeLabel(timer.mode);
+    const today = todayStat(focusByDay);
+    const goalText =
+      settings.dailyGoalMin > 0
+        ? `今日 ${today.minutes}/${settings.dailyGoalMin} 分钟`
+        : `今日 ${today.count} 🍅`;
 
     const tooltip = running
-      ? `FocusDay · ${modeLabel(timer.mode)} ${formatClock(remaining)} · 今日 ${
-          todayStat(focusByDay).count
-        } 🍅`
-      : IDLE_TOOLTIP;
+      ? `FocusDay · ${label} ${formatClock(seconds)} · ${goalText}`
+      : `FocusDay · ${goalText}`;
 
     if (tooltip !== lastTooltip) {
       lastTooltip = tooltip;
@@ -41,13 +43,12 @@ export function startTraySync(): () => void {
     }
 
     // The icon reflects the timer regardless of the tooltip preference.
-    const minutes = timer.running ? Math.max(0, Math.ceil(remaining / 60)) : null;
-    const fraction = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
+    const minutes = timer.running ? Math.max(0, Math.ceil(seconds / 60)) : null;
     const iconKey = `${minutes}|${timer.mode}|${color}`;
 
     if (iconKey !== lastIconKey) {
       lastIconKey = iconKey;
-      void setTrayProgress(minutes, fraction, color);
+      void setTrayProgress(minutes, progress, color);
     }
   };
 

@@ -17,6 +17,7 @@ import {
 import { useAppStore } from "../store/useAppStore";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
+import { humanizeMinutes } from "../lib/timer";
 import type { RepeatMode, Tag, Todo } from "../types";
 
 type Filter = "all" | "open" | "done";
@@ -387,6 +388,11 @@ export default function TodoView() {
                       <span className="text-[11px] tabular-nums text-muted">
                         {todo.completed}/{todo.estimate} 🍅
                       </span>
+                      {todo.focusMinutes > 0 ? (
+                        <span className="text-[11px] tabular-nums text-muted">
+                          · 专注 {humanizeMinutes(todo.focusMinutes)}
+                        </span>
+                      ) : null}
                       {totalSteps > 0 ? (
                         <span
                           className={cn(

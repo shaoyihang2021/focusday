@@ -1,6 +1,7 @@
 import type {
   Accent,
   AppState,
+  CountdownCalendar,
   CountdownRepeat,
   CountdownStyle,
   DayStat,
@@ -23,6 +24,8 @@ export const defaultSettings: Settings = {
   shortMin: 5,
   longMin: 15,
   longEvery: 4,
+  dailyGoalMin: 120,
+  weeklyGoalMin: 600,
   autoStart: false,
   sound: true,
   notify: true,
@@ -81,9 +84,11 @@ export const widgetScale: Record<WidgetSize, number> = {
 
 export const defaultTimer: TimerState = {
   mode: "work",
+  timing: "countdown",
   running: false,
   endAt: null,
   remaining: defaultSettings.workMin * 60,
+  startedAt: null,
   round: 0,
   activeTodoId: null,
 };
@@ -240,6 +245,7 @@ export function sanitizeState(input: unknown): AppState {
       tags: Array.isArray(todo.tags) ? todo.tags.filter((id) => knownTagIds.has(id)) : [],
       steps: sanitizeSteps(todo.steps),
       repeat: todo.repeat === "daily" ? ("daily" as const) : ("none" as const),
+      focusMinutes: Math.max(0, Math.round(asNumber(todo.focusMinutes, 0))),
     })),
   );
 
@@ -261,6 +267,11 @@ export function sanitizeState(input: unknown): AppState {
     tags,
     countdowns: (Array.isArray(raw.countdowns) ? raw.countdowns : []).map((entry) => {
       const repeat = sanitizeCountdownRepeat(entry);
+      const calendar: CountdownCalendar = entry.calendar === "lunar" ? "lunar" : "solar";
+      const leapMonth = calendar === "lunar" && entry.leapMonth === true;
+      // Lunar events only support one-off and yearly recurrence.
+      const safeRepeat =
+        calendar === "lunar" && repeat !== "none" && repeat !== "yearly" ? "yearly" : repeat;
       const intervalDays = Math.round(
         Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, asNumber(entry.intervalDays, 1))),
       );
@@ -271,10 +282,12 @@ export function sanitizeState(input: unknown): AppState {
           : undefined;
       return {
         ...entry,
-        repeat,
+        repeat: safeRepeat,
         intervalDays,
         style,
         subtitleEn,
+        calendar,
+        leapMonth,
         widgetPos: asPoint(entry.widgetPos) ?? undefined,
       };
     }),
@@ -283,6 +296,14 @@ export function sanitizeState(input: unknown): AppState {
       shortMin: asNumber(settings.shortMin, defaultSettings.shortMin),
       longMin: asNumber(settings.longMin, defaultSettings.longMin),
       longEvery: asNumber(settings.longEvery, defaultSettings.longEvery),
+      dailyGoalMin: Math.min(
+        720,
+        Math.max(0, asNumber(settings.dailyGoalMin, defaultSettings.dailyGoalMin)),
+      ),
+      weeklyGoalMin: Math.min(
+        5040,
+        Math.max(0, asNumber(settings.weeklyGoalMin, defaultSettings.weeklyGoalMin)),
+      ),
       autoStart: asBool(settings.autoStart, defaultSettings.autoStart),
       sound: asBool(settings.sound, defaultSettings.sound),
       notify: asBool(settings.notify, defaultSettings.notify),
@@ -329,9 +350,14 @@ export function sanitizeState(input: unknown): AppState {
         timer.mode === "work" || timer.mode === "short" || timer.mode === "long"
           ? timer.mode
           : defaultTimer.mode,
+      timing: timer.timing === "stopwatch" ? ("stopwatch" as const) : ("countdown" as const),
       running: asBool(timer.running, false),
       endAt: typeof timer.endAt === "number" ? timer.endAt : null,
       remaining: asNumber(timer.remaining, defaultTimer.remaining),
+      startedAt:
+        timer.timing === "stopwatch" && typeof timer.startedAt === "number"
+          ? timer.startedAt
+          : null,
       round: asNumber(timer.round, 0),
       activeTodoId: typeof timer.activeTodoId === "string" ? timer.activeTodoId : null,
     },
@@ -339,6 +365,7 @@ export function sanitizeState(input: unknown): AppState {
   };
 
   if (!merged.timer.running) merged.timer.endAt = null;
+  if (!merged.timer.running) merged.timer.startedAt = null;
 
   return merged;
 }

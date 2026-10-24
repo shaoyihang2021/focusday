@@ -1,4 +1,5 @@
 import type { Countdown } from "../types";
+import { lunarToSolar, nextLunarOccurrenceInfo } from "./lunar";
 
 export const parseDay = (value: string): Date => {
   const [y, m, d] = value.split("-").map(Number);
@@ -20,6 +21,8 @@ export interface CountdownInfo {
    * so the card never pairs an old date with the wrong weekday.
    */
   nextDate: string;
+  /** For lunar events, whether the next occurrence lands in a leap month. */
+  lunarLeap?: boolean;
 }
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -82,14 +85,25 @@ function nextInterval(today: Date, base: Date, interval: number): Date {
  * - `custom`: the stored date plus a whole number of `intervalDays` steps.
  */
 export function countdownInfo(
-  event: Pick<Countdown, "date" | "repeat" | "intervalDays">,
+  event: Pick<Countdown, "date" | "repeat" | "intervalDays" | "calendar" | "leapMonth">,
   now: Date = new Date(),
 ): CountdownInfo {
   const today = startOfDay(now);
   const base = startOfDay(parseDay(event.date));
+  const [lunarYear, lunarMonth, lunarDay] = event.date.split("-").map(Number);
   let target = base;
+  let lunarLeap: boolean | undefined;
 
-  if (event.repeat === "yearly") {
+  if (event.calendar === "lunar") {
+    if (event.repeat === "yearly") {
+      const occurrence = nextLunarOccurrenceInfo(today, lunarMonth, lunarDay, event.leapMonth);
+      target = occurrence?.date ?? base;
+      lunarLeap = occurrence?.leap;
+    } else {
+      target = lunarToSolar(lunarYear, lunarMonth, lunarDay, event.leapMonth) ?? base;
+      lunarLeap = event.leapMonth === true;
+    }
+  } else if (event.repeat === "yearly") {
     target = new Date(today.getFullYear(), base.getMonth(), base.getDate());
     if (target.getTime() < today.getTime()) {
       target = new Date(today.getFullYear() + 1, base.getMonth(), base.getDate());
@@ -113,5 +127,6 @@ export function countdownInfo(
     label,
     weekday: WEEKDAYS[target.getDay()],
     nextDate: dateKey(target),
+    lunarLeap,
   };
 }

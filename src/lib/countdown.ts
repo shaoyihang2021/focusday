@@ -1,5 +1,6 @@
 import type { Countdown, CountdownRepeat } from "../types";
 import type { CountdownInfo } from "./date";
+import { lunarDateLabel } from "./lunar";
 
 /** Guard rails for the custom recurrence interval. */
 export const MIN_INTERVAL_DAYS = 1;
@@ -21,6 +22,12 @@ export const repeatText = (item: Countdown): string =>
 
 export const clampInterval = (value: number): number =>
   Math.round(Math.min(MAX_INTERVAL_DAYS, Math.max(MIN_INTERVAL_DAYS, value || MIN_INTERVAL_DAYS)));
+
+/** Prefix shown on cards: `农历八月十五`, or an empty string for Gregorian. */
+export const calendarText = (
+  item: Pick<Countdown, "calendar" | "date" | "leapMonth">,
+  lunarLeap = item.leapMonth === true,
+): string => (item.calendar === "lunar" ? lunarDateLabel(item.date, lunarLeap) : "");
 
 export interface PosterContent {
   lead: string;

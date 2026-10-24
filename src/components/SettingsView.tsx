@@ -13,12 +13,14 @@ import {
   Palette,
   Rocket,
   RotateCcw,
+  Target,
   Upload,
   Waves,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
+import { TIMER_PRESETS, activePreset, presetPatch } from "../lib/timerPresets";
 import { Card, Segmented, Stepper, Toggle } from "./ui";
 import ManualSection from "./ManualSection";
 import {
@@ -185,6 +187,28 @@ export default function SettingsView() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Section icon={<LayoutGrid size={16} />} title="时长预设">
+        <Row label="快速预设" hint="一键套用专注 / 短休息 / 长休息时长">
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {TIMER_PRESETS.map((preset) => {
+              const active = activePreset(settings)?.id === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => updateSettings(presetPatch(preset))}
+                  className={
+                    "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors " +
+                    (active
+                      ? "border-brand/40 bg-brand-soft text-brand"
+                      : "border-line bg-card text-muted hover:text-ink")
+                  }
+                >
+                  {preset.label} {preset.hint}
+                </button>
+              );
+            })}
+          </div>
+        </Row>
         <Row label="专注" hint="专注阶段的默认时长">
           <Stepper
             value={settings.workMin}
@@ -219,6 +243,29 @@ export default function SettingsView() {
             max={8}
             suffix="个"
             onChange={(v) => updateSettings({ longEvery: v })}
+          />
+        </Row>
+      </Section>
+
+      <Section icon={<Target size={16} />} title="专注目标">
+        <Row label="每日目标" hint="达到后今日进度会变为完成；设为 0 关闭">
+          <Stepper
+            value={settings.dailyGoalMin}
+            min={0}
+            max={720}
+            step={15}
+            suffix="分钟"
+            onChange={(v) => updateSettings({ dailyGoalMin: v })}
+          />
+        </Row>
+        <Row label="每周目标" hint="从周一累计到今天，设为 0 关闭">
+          <Stepper
+            value={settings.weeklyGoalMin}
+            min={0}
+            max={5040}
+            step={30}
+            suffix="分钟"
+            onChange={(v) => updateSettings({ weeklyGoalMin: v })}
           />
         </Row>
       </Section>
@@ -596,7 +643,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.12.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.13.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

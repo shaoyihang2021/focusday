@@ -1,4 +1,4 @@
-import type { Settings, TimerMode, TimerState } from "../types";
+import type { Settings, TimerMode, TimerState, TimerTiming } from "../types";
 
 export const durationFor = (mode: TimerMode, settings: Settings): number => {
   switch (mode) {
@@ -34,6 +34,32 @@ export const computeRemaining = (timer: TimerState, now: number): number =>
   timer.running && timer.endAt
     ? Math.max(0, Math.ceil((timer.endAt - now) / 1000))
     : Math.max(0, Math.round(timer.remaining));
+
+/** Seconds a mode starts from; a stopwatch work round starts at zero. */
+export const initialSeconds = (mode: TimerMode, settings: Settings, timing: TimerTiming): number =>
+  timing === "stopwatch" && mode === "work" ? 0 : durationFor(mode, settings);
+
+/** Seconds a running stopwatch has accumulated. */
+export const elapsedSeconds = (timer: TimerState, now: number): number =>
+  timer.running && timer.startedAt
+    ? Math.max(0, Math.floor((now - timer.startedAt) / 1000))
+    : Math.max(0, Math.round(timer.remaining));
+
+/** The number shown on the clock: elapsed for a stopwatch, remaining otherwise. */
+export const displaySeconds = (timer: TimerState, now: number): number =>
+  timer.timing === "stopwatch" && timer.mode === "work"
+    ? elapsedSeconds(timer, now)
+    : computeRemaining(timer, now);
+
+/** Ring fill, clamped to 0–1. A stopwatch fills one full ring per hour. */
+export const timerProgress = (timer: TimerState, settings: Settings, now: number): number => {
+  if (timer.timing === "stopwatch" && timer.mode === "work") {
+    return Math.min(1, Math.max(0, displaySeconds(timer, now) / 3600));
+  }
+  const total = durationFor(timer.mode, settings);
+  if (total <= 0) return 0;
+  return Math.min(1, Math.max(0, 1 - computeRemaining(timer, now) / total));
+};
 
 /** `25:00` / `05:09` */
 export const formatClock = (totalSeconds: number): string => {

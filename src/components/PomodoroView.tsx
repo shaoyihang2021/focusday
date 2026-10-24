@@ -3,15 +3,18 @@ import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
 import {
   MINUTES_RANGE,
-  computeRemaining,
+  displaySeconds,
   durationFor,
   formatClock,
+  humanizeMinutes,
   minutesFor,
   minutesKeyFor,
   modeLabel,
+  timerProgress,
 } from "../lib/timer";
 import { todayStat } from "../lib/stats";
-import type { TimerMode } from "../types";
+import { TIMER_PRESETS, activePreset, presetPatch } from "../lib/timerPresets";
+import type { TimerMode, TimerTiming } from "../types";
 import { Ring } from "./Ring";
 import { Card, Segmented, Stepper } from "./ui";
 import { cn } from "../lib/cn";
@@ -29,6 +32,11 @@ const REST_PRESETS: { value: TimerMode; label: string }[] = [
   { value: "long", label: "长休息" },
 ];
 
+const TIMINGS: { value: TimerTiming; label: string }[] = [
+  { value: "countdown", label: "倒计时" },
+  { value: "stopwatch", label: "正计时" },
+];
+
 export default function PomodoroView() {
   const timer = useAppStore((s) => s.timer);
   const settings = useAppStore((s) => s.settings);
@@ -37,18 +45,31 @@ export default function PomodoroView() {
   const resetTimer = useAppStore((s) => s.resetTimer);
   const skip = useAppStore((s) => s.skip);
   const setMode = useAppStore((s) => s.setMode);
+  const setTiming = useAppStore((s) => s.setTiming);
+  const finishStopwatch = useAppStore((s) => s.finishStopwatch);
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(250);
-  const remaining = computeRemaining(timer, now);
+  const clock = displaySeconds(timer, now);
   const total = durationFor(timer.mode, settings);
-  const progress = total > 0 ? 1 - remaining / total : 0;
+  const progress = timerProgress(timer, settings, now);
   const isBreak = timer.mode !== "work";
+  const stopwatchFocus = timer.timing === "stopwatch" && timer.mode === "work";
   const activeTodo = todos.find((t) => t.id === timer.activeTodoId) ?? null;
   const openTodos = todos.filter((t) => !t.done);
-  const statusText = timer.running ? "进行中" : remaining < total ? "已暂停" : "准备就绪";
+  const statusText = timer.running
+    ? stopwatchFocus
+      ? "正计时进行中"
+      : "进行中"
+    : stopwatchFocus
+      ? clock > 0
+        ? "已暂停"
+        : "准备就绪"
+      : clock < total
+        ? "已暂停"
+        : "准备就绪";
   // "专注时免打扰" only muffles FocusDay's own alerts during a running work round.
   const dndActive = settings.focusDnd && timer.running && timer.mode === "work";
   const phase: Phase = timer.mode === "work" ? "focus" : "rest";
@@ -76,6 +97,11 @@ export default function PomodoroView() {
         <div className="flex flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Segmented options={PHASES} value={phase} onChange={changePhase} />
+            {phase === "focus" ? (
+              <div className={cn(timer.running && "pointer-events-none opacity-45")}>
+                <Segmented options={TIMINGS} value={timer.timing} onChange={setTiming} />
+              </div>
+            ) : null}
             {dndActive ? (
               <span
                 title="专注时免打扰已开启：本段专注期间 FocusDay 不会发出提示音或系统通知"
@@ -90,36 +116,91 @@ export default function PomodoroView() {
             <Segmented options={REST_PRESETS} value={timer.mode} onChange={setMode} />
           ) : null}
 
-          <div className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-1">
-            <span className="text-xs text-muted">{modeLabel(timer.mode)}时长</span>
-            {timer.running ? (
-              // While a round is running its length is fixed, so only show it.
-              <span className="text-sm font-semibold tabular-nums text-ink">
-                {minutesFor(timer.mode, settings)} 分钟
-              </span>
-            ) : (
-              <Stepper
-                value={minutesFor(timer.mode, settings)}
-                min={range.min}
-                max={range.max}
-                suffix="分钟"
-                onChange={setMinutes}
-              />
-            )}
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <span className="text-[11px] text-muted">预设</span>
+            {TIMER_PRESETS.map((preset) => {
+              const active = activePreset(settings)?.id === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  disabled={timer.running}
+                  onClick={() => updateSettings(presetPatch(preset))}
+                  title={`${preset.label}：专注 ${preset.workMin} · 短休息 ${preset.shortMin} · 长休息 ${preset.longMin}`}
+                  className={cn(
+                    "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    active
+                      ? "border-brand/40 bg-brand-soft text-brand"
+                      : "border-line bg-card text-muted hover:text-ink",
+                    timer.running && "cursor-not-allowed opacity-45",
+                  )}
+                >
+                  {preset.label} {preset.hint}
+                </button>
+              );
+            })}
           </div>
+
+          {stopwatchFocus ? (
+            <p className="text-xs text-muted">正计时不设时长，结束后按实际专注分钟记录。</p>
+          ) : (
+            <div className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-1">
+              <span className="text-xs text-muted">{modeLabel(timer.mode)}时长</span>
+              {timer.running ? (
+                // While a round is running its length is fixed, so only show it.
+                <span className="text-sm font-semibold tabular-nums text-ink">
+                  {minutesFor(timer.mode, settings)} 分钟
+                </span>
+              ) : (
+                <Stepper
+                  value={minutesFor(timer.mode, settings)}
+                  min={range.min}
+                  max={range.max}
+                  suffix="分钟"
+                  onChange={setMinutes}
+                />
+              )}
+            </div>
+          )}
         </div>
 
-        <Ring progress={progress}>
-          <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
-            {modeLabel(timer.mode)}
-          </span>
-          <span className="mt-1 text-[58px] leading-none font-bold tabular-nums tracking-tight text-ink">
-            {formatClock(remaining)}
-          </span>
-          <span className={cn("mt-2.5 text-xs font-medium", timer.running ? "fd-pulse text-brand" : "text-muted")}>
-            {statusText}
-          </span>
-        </Ring>
+        {stopwatchFocus ? (
+          <div className="grid h-[268px] w-[268px] place-items-center rounded-full border border-line bg-card">
+            <div className="flex flex-col items-center">
+              <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
+                正计时
+              </span>
+              <span className="mt-1 text-[58px] leading-none font-bold tabular-nums tracking-tight text-ink">
+                {formatClock(clock)}
+              </span>
+              <span
+                className={cn(
+                  "mt-2.5 text-xs font-medium",
+                  timer.running ? "fd-pulse text-brand" : "text-muted",
+                )}
+              >
+                {statusText}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <Ring progress={progress}>
+            <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
+              {modeLabel(timer.mode)}
+            </span>
+            <span className="mt-1 text-[58px] leading-none font-bold tabular-nums tracking-tight text-ink">
+              {formatClock(clock)}
+            </span>
+            <span
+              className={cn(
+                "mt-2.5 text-xs font-medium",
+                timer.running ? "fd-pulse text-brand" : "text-muted",
+              )}
+            >
+              {statusText}
+            </span>
+          </Ring>
+        )}
 
         <div className="flex items-center gap-3">
           <button
@@ -141,14 +222,25 @@ export default function PomodoroView() {
             {timer.running ? <Pause size={18} /> : <Play size={18} />}
             {timer.running ? "暂停" : isBreak ? "开始休息" : "开始专注"}
           </button>
-          <button
-            type="button"
-            onClick={skip}
-            title="跳过"
-            className="grid h-11 w-11 place-items-center rounded-2xl border border-line bg-card text-muted transition-colors hover:text-ink"
-          >
-            <SkipForward size={18} />
-          </button>
+          {stopwatchFocus ? (
+            <button
+              type="button"
+              onClick={finishStopwatch}
+              disabled={clock === 0}
+              className="flex h-11 items-center justify-center gap-1.5 rounded-2xl border border-line bg-card px-4 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Check size={16} /> 结束并记录
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={skip}
+              title="跳过"
+              className="grid h-11 w-11 place-items-center rounded-2xl border border-line bg-card text-muted transition-colors hover:text-ink"
+            >
+              <SkipForward size={18} />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -196,6 +288,11 @@ export default function PomodoroView() {
                   <p className="truncate text-sm font-medium text-ink">{activeTodo.title}</p>
                   <p className="mt-1 text-xs text-muted">
                     已完成 {activeTodo.completed} / {activeTodo.estimate} 个番茄
+                    {activeTodo.focusMinutes > 0 ? (
+                      <span className="ml-1.5 text-muted">
+                        · 已专注 {humanizeMinutes(activeTodo.focusMinutes)}
+                      </span>
+                    ) : null}
                     {activeTodo.completed >= activeTodo.estimate ? (
                       <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-brand">
                         <Check size={12} /> 达标

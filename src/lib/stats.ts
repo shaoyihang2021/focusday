@@ -45,7 +45,7 @@ export function streakDays(focusByDay: FocusByDay): number {
   let streak = 0;
   for (let i = 0; i < 400; i += 1) {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-    const hasFocus = dayStat(focusByDay, dateKey(d)).count > 0;
+    const hasFocus = dayStat(focusByDay, dateKey(d)).minutes > 0;
     if (hasFocus) {
       streak += 1;
     } else if (i > 0) {
@@ -134,6 +134,20 @@ export function sumDates(focusByDay: FocusByDay, dates: string[]): DayStat {
     { minutes: 0, count: 0 },
   );
 }
+
+/** Monday-first dates up to and including today. */
+export function weekDates(today: string = todayISO()): string[] {
+  const d = parseDay(today);
+  const offset = (d.getDay() + 6) % 7;
+  return Array.from({ length: offset + 1 }, (_, index) => {
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() - offset + index);
+    return dateKey(day);
+  });
+}
+
+/** Focus recorded this week (Monday through today). */
+export const weekStat = (focusByDay: FocusByDay): DayStat =>
+  sumDates(focusByDay, weekDates());
 
 /**
  * Whole-year calendar grid, Monday-first and padded to full weeks, laid out

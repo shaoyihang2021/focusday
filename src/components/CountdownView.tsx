@@ -2,17 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
-import { countdownInfo, formatDate, todayISO, type CountdownInfo } from "../lib/date";
+import { countdownInfo, dateKey, formatDate, parseDay, todayISO, weekdayName, type CountdownInfo } from "../lib/date";
+import {
+  LUNAR_DAYS,
+  LUNAR_MONTHS,
+  lunarLeapMonth,
+  lunarMonthDays,
+  lunarToSolar,
+  solarToLunar,
+} from "../lib/lunar";
 import {
   MAX_INTERVAL_DAYS,
   MIN_INTERVAL_DAYS,
+  calendarText,
   clampInterval,
   posterContent,
   repeatText,
 } from "../lib/countdown";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
-import type { Countdown, CountdownRepeat, CountdownStyle } from "../types";
+import type {
+  Countdown,
+  CountdownCalendar,
+  CountdownRepeat,
+  CountdownStyle,
+} from "../types";
 
 const COLORS = ["#f74a2c", "#f59e0b", "#22a699", "#3b82f6", "#8b5cf6", "#ec4899"];
 
@@ -58,11 +72,17 @@ interface RepeatFieldProps {
 }
 
 /** Recurrence picker plus the custom interval input. */
-function RepeatField({ repeat, intervalDays, onRepeat, onIntervalDays }: RepeatFieldProps) {
+function RepeatField({
+  repeat,
+  intervalDays,
+  onRepeat,
+  onIntervalDays,
+  options = REPEATS,
+}: RepeatFieldProps & { options?: typeof REPEATS }) {
   return (
     <div>
       <p className="mb-1.5 text-sm font-medium text-ink">重复周期</p>
-      <Segmented options={REPEATS} value={repeat} onChange={onRepeat} />
+      <Segmented options={options} value={repeat} onChange={onRepeat} />
       {repeat === "custom" ? (
         <div className="mt-2 flex items-center gap-2">
           <input
@@ -78,6 +98,129 @@ function RepeatField({ repeat, intervalDays, onRepeat, onIntervalDays }: RepeatF
           <span className="text-sm text-muted">天一次（1–3650）</span>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+const CALENDARS: { value: CountdownCalendar; label: string }[] = [
+  { value: "solar", label: "公历" },
+  { value: "lunar", label: "农历" },
+];
+
+interface LunarDraft {
+  year: number;
+  month: number;
+  day: number;
+  leap: boolean;
+}
+
+/** Solar date input or the lunar year/month/day pickers, with a live preview. */
+function CalendarField({
+  calendar,
+  solarDate,
+  lunar,
+  onCalendar,
+  onSolarDate,
+  onLunar,
+  idPrefix,
+}: {
+  calendar: CountdownCalendar;
+  solarDate: string;
+  lunar: LunarDraft;
+  onCalendar: (next: CountdownCalendar) => void;
+  onSolarDate: (next: string) => void;
+  onLunar: (next: LunarDraft) => void;
+  idPrefix: string;
+}) {
+  const solar = lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap);
+  const leapAvailable = lunarLeapMonth(lunar.year) === lunar.month;
+  const maxDay = lunarMonthDays(lunar.year, lunar.month, lunar.leap) || 30;
+
+  const patch = (next: Partial<LunarDraft>) => {
+    const merged = { ...lunar, ...next };
+    if (lunarLeapMonth(merged.year) !== merged.month) merged.leap = false;
+    merged.day = Math.min(merged.day, lunarMonthDays(merged.year, merged.month, merged.leap) || 30);
+    onLunar(merged);
+  };
+
+  const selectClass =
+    "rounded-xl border border-line bg-solid px-2 py-2.5 text-sm text-ink outline-none focus:border-brand";
+
+  return (
+    <div className="min-w-[280px]">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <label htmlFor={`${idPrefix}-solar`} className="text-xs font-medium text-muted">
+          目标日期
+        </label>
+        <Segmented options={CALENDARS} value={calendar} onChange={onCalendar} />
+      </div>
+
+      {calendar === "solar" ? (
+        <input
+          id={`${idPrefix}-solar`}
+          type="date"
+          lang="zh-CN"
+          value={solarDate}
+          onChange={(e) => onSolarDate(e.target.value)}
+          className="rounded-xl border border-line bg-solid px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <select
+              aria-label="农历年"
+              value={lunar.year}
+              onChange={(e) => patch({ year: Number(e.target.value) })}
+              className={selectClass}
+            >
+              {Array.from({ length: 201 }, (_, index) => 1900 + index).map((year) => (
+                <option key={year} value={year}>
+                  {year}年
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="农历月"
+              value={lunar.month}
+              onChange={(e) => patch({ month: Number(e.target.value) })}
+              className={selectClass}
+            >
+              {LUNAR_MONTHS.map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="农历日"
+              value={Math.min(lunar.day, maxDay)}
+              onChange={(e) => patch({ day: Number(e.target.value) })}
+              className={selectClass}
+            >
+              {Array.from({ length: maxDay }, (_, index) => index + 1).map((day) => (
+                <option key={day} value={day}>
+                  {LUNAR_DAYS[day - 1]}
+                </option>
+              ))}
+            </select>
+            {leapAvailable ? (
+              <label className="flex items-center gap-1 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={lunar.leap}
+                  onChange={(e) => patch({ leap: e.target.checked })}
+                />
+                闰{lunar.month}月
+              </label>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            {solar
+              ? `对应公历 ${formatDate(dateKey(solar))} · ${weekdayName(dateKey(solar))}`
+              : "该农历日期不存在，请重新选择"}
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -208,6 +351,9 @@ function WanderingCard({
 
       <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/45">
         <span>
+          {calendarText(item, info.lunarLeap)
+            ? `${calendarText(item, info.lunarLeap)} · `
+            : ""}
           {formatDate(info.nextDate)} · {info.weekday}
           {item.repeat === "none" ? "" : ` · ${repeatText(item)}`}
         </span>
@@ -225,6 +371,8 @@ interface EditDraft {
   intervalDays: number;
   style: CountdownStyle;
   subtitleEn: string;
+  calendar: CountdownCalendar;
+  lunar: LunarDraft;
 }
 
 /** Modal that edits every field of an existing countdown. */
@@ -238,6 +386,16 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
     intervalDays: item.intervalDays ?? 14,
     style: item.style,
     subtitleEn: item.subtitleEn ?? "",
+    calendar: item.calendar === "lunar" ? "lunar" : "solar",
+    lunar:
+      item.calendar === "lunar"
+        ? {
+            year: Number(item.date.slice(0, 4)),
+            month: Number(item.date.slice(5, 7)),
+            day: Number(item.date.slice(8, 10)),
+            leap: item.leapMonth === true,
+          }
+        : solarToLunar(parseDay(item.date)),
   }));
 
   useEffect(() => {
@@ -249,18 +407,25 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
   }, [onClose]);
 
   const patch = (next: Partial<EditDraft>) => setDraft((current) => ({ ...current, ...next }));
-  const valid = draft.title.trim() !== "" && draft.date !== "";
+  const lunarDate = `${draft.lunar.year}-${`${draft.lunar.month}`.padStart(2, "0")}-${`${draft.lunar.day}`.padStart(2, "0")}`;
+  const targetDate = draft.calendar === "lunar" ? lunarDate : draft.date;
+  const lunarValid =
+    draft.calendar === "solar" ||
+    lunarToSolar(draft.lunar.year, draft.lunar.month, draft.lunar.day, draft.lunar.leap) !== null;
+  const valid = draft.title.trim() !== "" && targetDate !== "" && lunarValid;
 
   const save = () => {
     if (!valid) return;
     updateCountdown(item.id, {
       title: draft.title.trim(),
-      date: draft.date,
+      date: targetDate,
       color: draft.color,
       repeat: draft.repeat,
       intervalDays: clampInterval(draft.intervalDays),
       style: draft.style,
       subtitleEn: draft.style === "wandering" ? draft.subtitleEn.trim() || undefined : undefined,
+      calendar: draft.calendar,
+      leapMonth: draft.calendar === "lunar" && draft.lunar.leap ? true : undefined,
     });
     onClose();
   };
@@ -299,19 +464,31 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
               />
             </div>
 
-            <div>
-              <label htmlFor="fd-edit-date" className="mb-1.5 block text-xs font-medium text-muted">
-                目标日期
-              </label>
-              <input
-                id="fd-edit-date"
-                type="date"
-                lang="zh-CN"
-                value={draft.date}
-                onChange={(e) => patch({ date: e.target.value })}
-                className="rounded-xl border border-line bg-solid px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
-              />
-            </div>
+            <CalendarField
+              calendar={draft.calendar}
+              solarDate={draft.date}
+              lunar={draft.lunar}
+              onCalendar={(next) => {
+                const converted = lunarToSolar(
+                  draft.lunar.year,
+                  draft.lunar.month,
+                  draft.lunar.day,
+                  draft.lunar.leap,
+                );
+                patch({
+                  calendar: next,
+                  date: next === "solar" && converted ? dateKey(converted) : draft.date,
+                  lunar: next === "lunar" ? solarToLunar(parseDay(draft.date)) : draft.lunar,
+                  repeat:
+                    next === "lunar" && draft.repeat !== "none" && draft.repeat !== "yearly"
+                      ? "yearly"
+                      : draft.repeat,
+                });
+              }}
+              onSolarDate={(date) => patch({ date })}
+              onLunar={(lunar) => patch({ lunar })}
+              idPrefix="fd-edit"
+            />
 
             <div>
               <p className="mb-1.5 text-sm font-medium text-ink">标记色</p>
@@ -321,6 +498,11 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
             <RepeatField
               repeat={draft.repeat}
               intervalDays={draft.intervalDays}
+              options={
+                draft.calendar === "lunar"
+                  ? REPEATS.filter((r) => r.value === "none" || r.value === "yearly")
+                  : REPEATS
+              }
               onRepeat={(repeat) => patch({ repeat })}
               onIntervalDays={(intervalDays) => patch({ intervalDays })}
             />
@@ -367,6 +549,8 @@ export default function CountdownView() {
   const [intervalDays, setIntervalDays] = useState(14);
   const [style, setStyle] = useState<CountdownStyle>("classic");
   const [subtitleEn, setSubtitleEn] = useState("");
+  const [calendar, setCalendar] = useState<CountdownCalendar>("solar");
+  const [lunar, setLunar] = useState<LunarDraft>(() => solarToLunar(new Date()));
   const [editing, setEditing] = useState<Countdown | null>(null);
 
   const now = new Date(useNow(60_000));
@@ -383,20 +567,32 @@ export default function CountdownView() {
   }, [countdowns, now]);
 
   const submit = () => {
-    if (!title.trim() || !date) return;
+    const lunarDate = `${lunar.year}-${`${lunar.month}`.padStart(2, "0")}-${`${lunar.day}`.padStart(2, "0")}`;
+    const targetDate = calendar === "lunar" ? lunarDate : date;
+    const lunarValid =
+      calendar === "solar" ||
+      lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap) !== null;
+    if (!title.trim() || !targetDate || !lunarValid) return;
     addCountdown({
       title,
-      date,
+      date: targetDate,
       color,
       repeat,
       intervalDays: repeat === "custom" ? clampInterval(intervalDays) : undefined,
       style,
       subtitleEn: style === "wandering" ? subtitleEn : undefined,
+      calendar,
+      leapMonth: calendar === "lunar" && lunar.leap ? true : undefined,
     });
     setTitle("");
     setDate(todayISO());
     setRepeat("none");
+    setCalendar("solar");
   };
+
+  const lunarValid =
+    calendar === "solar" ||
+    lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap) !== null;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
@@ -412,16 +608,26 @@ export default function CountdownView() {
               className="w-full rounded-xl border border-line bg-solid px-4 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">目标日期</label>
-            <input
-              type="date"
-              lang="zh-CN"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-xl border border-line bg-solid px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
-            />
-          </div>
+          <CalendarField
+            calendar={calendar}
+            solarDate={date}
+            lunar={lunar}
+            onCalendar={(next) => {
+              if (next === "lunar") {
+                setLunar(solarToLunar(parseDay(date)));
+                setRepeat((current) =>
+                  current === "none" || current === "yearly" ? current : "yearly",
+                );
+              } else {
+                const converted = lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap);
+                if (converted) setDate(dateKey(converted));
+              }
+              setCalendar(next);
+            }}
+            onSolarDate={setDate}
+            onLunar={setLunar}
+            idPrefix="fd-add"
+          />
           <div>
             <label className="mb-1.5 block text-xs font-medium text-muted">标记色</label>
             <ColorPicker value={color} onChange={setColor} />
@@ -429,7 +635,7 @@ export default function CountdownView() {
           <button
             type="button"
             onClick={submit}
-            disabled={!title.trim() || !date}
+            disabled={!title.trim() || !lunarValid}
             className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
           >
             <Plus size={16} /> 添加
@@ -439,6 +645,11 @@ export default function CountdownView() {
           <RepeatField
             repeat={repeat}
             intervalDays={intervalDays}
+            options={
+              calendar === "lunar"
+                ? REPEATS.filter((r) => r.value === "none" || r.value === "yearly")
+                : REPEATS
+            }
             onRepeat={setRepeat}
             onIntervalDays={setIntervalDays}
           />
@@ -488,6 +699,9 @@ export default function CountdownView() {
                 <div className="min-w-0 pr-24">
                   <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
                   <p className="mt-0.5 text-[11px] text-muted">
+                    {calendarText(item, info.lunarLeap)
+                      ? `${calendarText(item, info.lunarLeap)} · `
+                      : ""}
                     {formatDate(info.nextDate)} · {info.weekday}
                     {item.repeat === "none" ? "" : ` · ${repeatText(item)}`}
                   </p>

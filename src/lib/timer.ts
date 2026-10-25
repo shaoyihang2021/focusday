@@ -33,7 +33,7 @@ export const MINUTES_RANGE: Record<TimerMode, { min: number; max: number }> = {
 export const computeRemaining = (timer: TimerState, now: number): number =>
   timer.running && timer.endAt
     ? Math.max(0, Math.ceil((timer.endAt - now) / 1000))
-    : Math.max(0, Math.round(timer.remaining));
+    : Math.max(0, Math.ceil(timer.remaining));
 
 /** Seconds a mode starts from; a stopwatch work round starts at zero. */
 export const initialSeconds = (mode: TimerMode, settings: Settings, timing: TimerTiming): number =>
@@ -43,7 +43,7 @@ export const initialSeconds = (mode: TimerMode, settings: Settings, timing: Time
 export const elapsedSeconds = (timer: TimerState, now: number): number =>
   timer.running && timer.startedAt
     ? Math.max(0, Math.floor((now - timer.startedAt) / 1000))
-    : Math.max(0, Math.round(timer.remaining));
+    : Math.max(0, Math.floor(timer.remaining));
 
 /** The number shown on the clock: elapsed for a stopwatch, remaining otherwise. */
 export const displaySeconds = (timer: TimerState, now: number): number =>

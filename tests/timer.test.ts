@@ -29,6 +29,13 @@ test("正计时暂停后沿用累计秒数", () => {
   assert.equal(displaySeconds(timer, 999_999), 95);
 });
 
+test("暂停时保留亚秒精度且显示口径与运行中一致", () => {
+  const pausedCountdown = { ...base, remaining: 3.028 };
+  assert.equal(displaySeconds(pausedCountdown, 0), 4);
+  const pausedStopwatch = { ...base, timing: "stopwatch" as const, remaining: 50.582 };
+  assert.equal(displaySeconds(pausedStopwatch, 0), 50);
+});
+
 test("倒计时进度与正计时小时进度都被夹在 0–1", () => {
   assert.equal(timerProgress(base, settings, Date.now()), 0);
   const almostDone = { ...base, running: true, endAt: Date.now() + 60_000 };

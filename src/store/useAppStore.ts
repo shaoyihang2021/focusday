@@ -328,7 +328,7 @@ export const useAppStore = create<Store>((set, get) => ({
   start: () => {
     const { timer, settings } = get();
     if (timer.timing === "stopwatch" && timer.mode === "work") {
-      const elapsed = Math.max(0, Math.round(timer.remaining));
+      const elapsed = Math.max(0, timer.remaining);
       set({
         timer: {
           ...timer,
@@ -356,16 +356,19 @@ export const useAppStore = create<Store>((set, get) => ({
     const { timer } = get();
     if (!timer.running) return;
     if (timer.timing === "stopwatch" && timer.mode === "work") {
+      // Keep fractional seconds so repeated pauses cannot accumulate drift.
       const elapsed = timer.startedAt
-        ? Math.max(0, Math.round((Date.now() - timer.startedAt) / 1000))
-        : Math.max(0, Math.round(timer.remaining));
+        ? Math.max(0, (Date.now() - timer.startedAt) / 1000)
+        : Math.max(0, timer.remaining);
       set({
         timer: { ...timer, running: false, endAt: null, startedAt: null, remaining: elapsed },
       });
       return;
     }
+    // Keeping the fraction also prevents a pause in the last second from
+    // rounding the round down to zero (which would restart the whole preset).
     const remaining = timer.endAt
-      ? Math.max(0, Math.round((timer.endAt - Date.now()) / 1000))
+      ? Math.max(0, (timer.endAt - Date.now()) / 1000)
       : timer.remaining;
     set({ timer: { ...timer, running: false, endAt: null, remaining } });
   },
@@ -435,7 +438,7 @@ export const useAppStore = create<Store>((set, get) => ({
     const seconds =
       timer.running && timer.startedAt
         ? Math.max(0, Math.floor((Date.now() - timer.startedAt) / 1000))
-        : Math.max(0, Math.round(timer.remaining));
+        : Math.max(0, timer.remaining);
     const minutes = seconds < 60 ? 0 : Math.round(seconds / 60);
     const activeId = timer.activeTodoId;
 
@@ -586,6 +589,6 @@ export function startEngine(): () => void {
       lastDay = day;
       rolloverRepeats();
     }
-  }, 500);
+  }, 250);
   return () => window.clearInterval(id);
 }

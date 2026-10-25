@@ -49,7 +49,7 @@ test("闰月事件在没有闰月的年份回落到普通月", () => {
   assert.equal(occurrence?.leap, false);
 });
 
-test("农历文案包含闰月与月日名", () => {
-  assert.equal(lunarDateLabel("2026-08-15"), "农历八月十五");
-  assert.equal(lunarDateLabel("2025-06-01", true), "农历闰六月初一");
+test("阴历文案包含闰月与月日名", () => {
+  assert.equal(lunarDateLabel("2026-08-15"), "阴历八月十五");
+  assert.equal(lunarDateLabel("2025-06-01", true), "阴历闰六月初一");
 });

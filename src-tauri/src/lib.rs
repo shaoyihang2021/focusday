@@ -24,6 +24,10 @@ const COUNTDOWN_PREFIX: &str = "cd-";
 const COUNTDOWN_BASE_W: f64 = 360.0;
 const COUNTDOWN_BASE_H: f64 = 214.0;
 
+/// Serialises countdown window syncing so concurrent pin toggles cannot
+/// interleave their "destroy then create" steps.
+static COUNTDOWN_SYNC_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Builds a valid Tauri window label from a countdown id.
 /// Tauri labels may only contain alphanumerics, `-`, `/`, `:`, `_` and `.`.
 fn countdown_label(id: &str) -> String {
@@ -139,6 +143,11 @@ async fn focus_main_window(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn sync_countdown_widgets(app: AppHandle, ids: Vec<String>) -> Result<(), String> {
     use std::collections::HashSet;
+
+    // Recover from a poisoned lock instead of permanently disabling sync.
+    let _guard = COUNTDOWN_SYNC_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     let wanted: HashSet<String> = ids.iter().map(|id| countdown_label(id)).collect();
 

@@ -121,6 +121,12 @@ function persist(state: Store): void {
   saveHandle = window.setTimeout(() => void saveState(data), 300);
 }
 
+/** Writes the current state immediately, bypassing the 300ms debounce. */
+export async function flushPersist(): Promise<void> {
+  window.clearTimeout(saveHandle);
+  await saveState(snapshot(useAppStore.getState()));
+}
+
 export const useAppStore = create<Store>((set, get) => ({
   ...defaultState,
 

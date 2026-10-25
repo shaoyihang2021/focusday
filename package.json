@@ -1,7 +1,7 @@
 {
   "name": "focusday",
   "private": true,
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "FocusDay · 番茄工作法 + 待办清单 + 倒数日，带桌面小组件的 Windows 桌面应用",
   "type": "module",
   "license": "MIT",

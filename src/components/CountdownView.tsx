@@ -46,7 +46,7 @@ const STYLES: { value: CountdownStyle; label: string }[] = [
 /** Colour swatches, shared by the add form and the edit dialog. */
 function ColorPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-2 py-1.5">
+    <div className="flex h-10 items-center gap-1.5 rounded-xl border border-line bg-card px-2">
       {COLORS.map((color) => (
         <button
           key={color}
@@ -103,8 +103,8 @@ function RepeatField({
 }
 
 const CALENDARS: { value: CountdownCalendar; label: string }[] = [
-  { value: "solar", label: "公历" },
-  { value: "lunar", label: "农历" },
+  { value: "lunar", label: "阴历" },
+  { value: "solar", label: "阳历" },
 ];
 
 interface LunarDraft {
@@ -144,34 +144,35 @@ function CalendarField({
   };
 
   const selectClass =
-    "rounded-xl border border-line bg-solid px-2 py-2.5 text-sm text-ink outline-none focus:border-brand";
+    "h-10 rounded-xl border border-line bg-solid px-2 text-sm text-ink outline-none focus:border-brand";
 
   return (
-    <div className="min-w-[280px]">
-      <div className="mb-1.5 flex items-center justify-between gap-3">
-        <label htmlFor={`${idPrefix}-solar`} className="text-xs font-medium text-muted">
-          目标日期
-        </label>
-        <Segmented options={CALENDARS} value={calendar} onChange={onCalendar} />
-      </div>
-
-      {calendar === "solar" ? (
-        <input
-          id={`${idPrefix}-solar`}
-          type="date"
-          lang="zh-CN"
-          value={solarDate}
-          onChange={(e) => onSolarDate(e.target.value)}
-          className="rounded-xl border border-line bg-solid px-3 py-2.5 text-sm text-ink outline-none focus:border-brand"
+    <div className="min-w-[356px]">
+      <p className="mb-1.5 text-xs font-medium text-muted">目标日期</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented
+          options={CALENDARS}
+          value={calendar}
+          onChange={onCalendar}
+          className="h-10 shrink-0 items-center"
         />
-      ) : (
-        <>
+        {calendar === "solar" ? (
+          <input
+            id={`${idPrefix}-solar`}
+            aria-label="目标日期"
+            type="date"
+            lang="zh-CN"
+            value={solarDate}
+            onChange={(e) => onSolarDate(e.target.value)}
+            className="h-10 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none focus:border-brand"
+          />
+        ) : (
           <div className="flex flex-wrap items-center gap-1.5">
             <select
-              aria-label="农历年"
+              aria-label="阴历年"
               value={lunar.year}
               onChange={(e) => patch({ year: Number(e.target.value) })}
-              className={selectClass}
+              className={cn(selectClass, "w-20")}
             >
               {Array.from({ length: 201 }, (_, index) => 1900 + index).map((year) => (
                 <option key={year} value={year}>
@@ -180,10 +181,10 @@ function CalendarField({
               ))}
             </select>
             <select
-              aria-label="农历月"
+              aria-label="阴历月"
               value={lunar.month}
               onChange={(e) => patch({ month: Number(e.target.value) })}
-              className={selectClass}
+              className={cn(selectClass, "w-16")}
             >
               {LUNAR_MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -192,10 +193,10 @@ function CalendarField({
               ))}
             </select>
             <select
-              aria-label="农历日"
+              aria-label="阴历日"
               value={Math.min(lunar.day, maxDay)}
               onChange={(e) => patch({ day: Number(e.target.value) })}
-              className={selectClass}
+              className={cn(selectClass, "w-16")}
             >
               {Array.from({ length: maxDay }, (_, index) => index + 1).map((day) => (
                 <option key={day} value={day}>
@@ -203,24 +204,28 @@ function CalendarField({
                 </option>
               ))}
             </select>
-            {leapAvailable ? (
-              <label className="flex items-center gap-1 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  checked={lunar.leap}
-                  onChange={(e) => patch({ leap: e.target.checked })}
-                />
-                闰{lunar.month}月
-              </label>
-            ) : null}
           </div>
-          <p className="mt-1 text-[11px] text-muted">
+        )}
+      </div>
+      {calendar === "lunar" ? (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+          {leapAvailable ? (
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={lunar.leap}
+                onChange={(e) => patch({ leap: e.target.checked })}
+              />
+              闰{lunar.month}月
+            </label>
+          ) : null}
+          <span>
             {solar
-              ? `对应公历 ${formatDate(dateKey(solar))} · ${weekdayName(dateKey(solar))}`
-              : "该农历日期不存在，请重新选择"}
-          </p>
-        </>
-      )}
+              ? `对应阳历 ${formatDate(dateKey(solar))} · ${weekdayName(dateKey(solar))}`
+              : "该阴历日期不存在，请重新选择"}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -597,7 +602,7 @@ export default function CountdownView() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <Card className="fd-pop p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
           <div className="flex-1">
             <label className="mb-1.5 block text-xs font-medium text-muted">事件名称</label>
             <input
@@ -605,7 +610,7 @@ export default function CountdownView() {
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
               placeholder="例如：项目上线、生日、旅行出发"
-              className="w-full rounded-xl border border-line bg-solid px-4 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
+              className="h-10 w-full rounded-xl border border-line bg-solid px-4 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
             />
           </div>
           <CalendarField
@@ -636,7 +641,7 @@ export default function CountdownView() {
             type="button"
             onClick={submit}
             disabled={!title.trim() || !lunarValid}
-            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
+            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 lg:mt-[22px]"
           >
             <Plus size={16} /> 添加
           </button>

@@ -1,6 +1,6 @@
 [package]
 name = "focusday"
-version = "0.13.0"
+version = "0.14.0"
 description = "FocusDay · 番茄工作法 + 待办清单 + 倒数日"
 authors = ["shaoyihang2021"]
 edition = "2021"

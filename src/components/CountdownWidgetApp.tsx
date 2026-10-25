@@ -33,6 +33,10 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
   }, [savedPos]);
 
   useEffect(() => {
+    // Only persist once this window knows the event is really pinned. If it
+    // loaded a stale state (pinned = false), writing a position back would
+    // overwrite the fresh pin and make the main window close it again.
+    if (!item?.pinned) return;
     let debounce: number | undefined;
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -50,7 +54,7 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
       window.clearTimeout(debounce);
       unlisten?.();
     };
-  }, [id, updateCountdown]);
+  }, [id, updateCountdown, item?.pinned]);
 
   if (!item) return null;
 

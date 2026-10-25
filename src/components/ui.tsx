@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 
 export function Card({
@@ -132,6 +132,21 @@ interface StepperProps {
 
 export function Stepper({ value, min, max, step = 1, suffix, onChange }: StepperProps) {
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
+  const [draft, setDraft] = useState(String(value));
+
+  // Keep the field in sync when +/- or an external settings change moves the value.
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    const parsed = trimmed === "" ? value : Number(trimmed);
+    const next = clamp(Number.isFinite(parsed) ? Math.round(parsed) : value);
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
+
   return (
     <div className="flex items-center gap-2">
       <button
@@ -141,9 +156,27 @@ export function Stepper({ value, min, max, step = 1, suffix, onChange }: Stepper
       >
         −
       </button>
-      <span className="min-w-[3.5rem] text-center text-sm font-semibold tabular-nums text-ink">
-        {value}
-        {suffix ? <span className="ml-0.5 text-xs font-normal text-muted">{suffix}</span> : null}
+      <span className="flex items-baseline">
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label={suffix ? `输入${suffix}` : "输入数值"}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ""))}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              commit();
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              setDraft(String(value));
+              e.currentTarget.blur();
+            }
+          }}
+          className="w-14 rounded-lg border border-transparent bg-transparent px-1 py-1 text-center text-sm font-semibold tabular-nums text-ink outline-none transition-colors hover:border-line focus:border-brand focus:bg-solid"
+        />
+        {suffix ? <span className="text-xs font-normal text-muted">{suffix}</span> : null}
       </span>
       <button
         type="button"

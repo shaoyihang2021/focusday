@@ -220,8 +220,8 @@ export function nextLunarOccurrence(
   return nextLunarOccurrenceInfo(today, month, day, leap)?.date ?? null;
 }
 
-/** `农历八月十五` / `农历闰六月初一` from a `YYYY-MM-DD` lunar string. */
+/** `阴历八月十五` / `阴历闰六月初一` from a `YYYY-MM-DD` lunar string. */
 export function lunarDateLabel(date: string, leap = false): string {
   const [, month, day] = date.split("-").map(Number);
-  return `农历${leap ? "闰" : ""}${LUNAR_MONTHS[month - 1] ?? ""}${LUNAR_DAYS[day - 1] ?? ""}`;
+  return `阴历${leap ? "闰" : ""}${LUNAR_MONTHS[month - 1] ?? ""}${LUNAR_DAYS[day - 1] ?? ""}`;
 }

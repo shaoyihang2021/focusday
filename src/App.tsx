@@ -7,7 +7,7 @@ import TodoView from "./components/TodoView";
 import CountdownView from "./components/CountdownView";
 import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
-import { useAppStore } from "./store/useAppStore";
+import { flushPersist, useAppStore } from "./store/useAppStore";
 import { setWidgetVisible, syncCountdownWidgets } from "./lib/widget";
 import { isTauri } from "./lib/env";
 import type { View } from "./types";
@@ -19,6 +19,25 @@ const META: Record<View, { title: string; subtitle: string }> = {
   stats: { title: "统计", subtitle: "看看你的专注积累" },
   settings: { title: "设置", subtitle: "调成你喜欢的样子" },
 };
+
+let pendingPinnedIds: string[] = [];
+let pinnedSyncChain: Promise<void> = Promise.resolve();
+
+/**
+ * Serialises widget syncing and always reads the newest pinned set after the
+ * state has been flushed, so a newly opened window never loads stale data.
+ */
+function queueCountdownWidgetSync(ids: string[]): void {
+  pendingPinnedIds = ids;
+  pinnedSyncChain = pinnedSyncChain
+    .then(async () => {
+      await flushPersist();
+      await syncCountdownWidgets(pendingPinnedIds);
+    })
+    .catch((err) => {
+      console.warn("[focusday] countdown widget sync failed", err);
+    });
+}
 
 export default function App() {
   const [view, setView] = useState<View>("pomodoro");
@@ -38,7 +57,7 @@ export default function App() {
 
   useEffect(() => {
     if (!tauri) return;
-    void syncCountdownWidgets(pinnedIds ? pinnedIds.split("|") : []);
+    queueCountdownWidgetSync(pinnedIds ? pinnedIds.split("|") : []);
   }, [pinnedIds, tauri]);
 
   // Switching views should start at the top rather than keep the previous

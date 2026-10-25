@@ -97,11 +97,6 @@ export default function PomodoroView() {
         <div className="flex flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Segmented options={PHASES} value={phase} onChange={changePhase} />
-            {phase === "focus" ? (
-              <div className={cn(timer.running && "pointer-events-none opacity-45")}>
-                <Segmented options={TIMINGS} value={timer.timing} onChange={setTiming} />
-              </div>
-            ) : null}
             {dndActive ? (
               <span
                 title="专注时免打扰已开启：本段专注期间 FocusDay 不会发出提示音或系统通知"
@@ -114,7 +109,11 @@ export default function PomodoroView() {
 
           {phase === "rest" ? (
             <Segmented options={REST_PRESETS} value={timer.mode} onChange={setMode} />
-          ) : null}
+          ) : (
+            <div className={cn(timer.running && "pointer-events-none opacity-45")}>
+              <Segmented options={TIMINGS} value={timer.timing} onChange={setTiming} />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="text-[11px] text-muted">预设</span>

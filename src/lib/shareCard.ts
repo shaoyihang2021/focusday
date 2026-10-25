@@ -27,6 +27,8 @@ import {
 export type ExportRange = StatsRange;
 
 const CARD_W = 1200;
+/** Render at 2x so the PNG stays sharp on HiDPI screens and when zoomed. */
+const SCALE = 2;
 const PAD = 72;
 const FONT = '"PingFang SC","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif';
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
@@ -167,10 +169,11 @@ export async function buildStatsCard(
   const CARD_H = HEAT_GRID_TOP + 20 + rows * (heatCellH + heatGap) + 90;
 
   const canvas = document.createElement("canvas");
-  canvas.width = CARD_W;
-  canvas.height = CARD_H;
+  canvas.width = CARD_W * SCALE;
+  canvas.height = CARD_H * SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("无法创建画布上下文");
+  ctx.scale(SCALE, SCALE);
 
   ctx.fillStyle = t.canvas;
   ctx.fillRect(0, 0, CARD_W, CARD_H);

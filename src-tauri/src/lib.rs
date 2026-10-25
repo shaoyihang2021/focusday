@@ -485,6 +485,35 @@ fn open_system_focus_settings() -> Result<(), String> {
     }
 }
 
+/// Opens the GitHub Releases page in the user's default browser.
+#[tauri::command]
+fn open_release_page() -> Result<(), String> {
+    const URL: &str = "https://github.com/shaoyihang2021/focusday/releases";
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", URL])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(URL)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(URL)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Fully exits the app, closing tray and widget windows as well.
 #[tauri::command]
 fn quit_app(app: AppHandle) {
@@ -567,6 +596,7 @@ pub fn run() {
             read_image_data_url,
             write_png,
             open_system_focus_settings,
+            open_release_page,
             quit_app
         ])
         .setup(|app| {

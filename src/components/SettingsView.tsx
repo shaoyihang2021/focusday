@@ -31,6 +31,7 @@ import {
 } from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
 import { pickWidgetBackground } from "../lib/widgetBackground";
+import { RELEASES_URL, openReleasePage } from "../lib/links";
 import { isTauri } from "../lib/env";
 import { formatDate, todayISO } from "../lib/date";
 import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
@@ -634,6 +635,24 @@ export default function SettingsView() {
         </Row>
       </Section>
 
+      <Section icon={<Download size={16} />} title="更新">
+        <Row
+          label="检查更新"
+          hint={`打开 GitHub Releases 页面：${RELEASES_URL.replace(/^https:\/\//, "")}`}
+        >
+          <button
+            type="button"
+            onClick={() => void openReleasePage()}
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+          >
+            <ExternalLink size={14} /> 打开更新页面
+          </button>
+        </Row>
+        <Row label="版本" hint="安装包会发布在 Releases 页面">
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.15.0</span>
+        </Row>
+      </Section>
+
       <ManualSection />
 
       {status ? (
@@ -643,7 +662,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.14.1 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.15.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

@@ -79,6 +79,13 @@ const TOPICS: Topic[] = [
     ],
   },
   {
+    title: "更新",
+    points: [
+      "在「设置 → 更新」点「打开更新页面」，会打开 GitHub Releases，下载最新 Windows 安装包。",
+      "当前版本号显示在该区域与设置页底部。",
+    ],
+  },
+  {
     title: "数据与备份",
     points: [
       "所有数据都保存在本地；可在「数据」中导出 JSON 备份，或从备份文件恢复。",

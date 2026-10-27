@@ -588,7 +588,10 @@ export default function SettingsView() {
           label="锁定小组件位置"
           hint="锁定后无法拖动小组件，避免误触；位置会被记住并在下次启动时还原"
         />
-        <Row label="不透明度" hint={`当前 ${Math.round(settings.widgetOpacity * 100)}%`}>
+        <Row
+          label="背景不透明度"
+          hint={`只影响面板与背景图，文字始终清晰 · 当前 ${Math.round(settings.widgetOpacity * 100)}%`}
+        >
           <input
             type="range"
             min={40}
@@ -638,7 +641,7 @@ export default function SettingsView() {
       <Section icon={<Download size={16} />} title="更新">
         <Row
           label="检查更新"
-          hint={`打开 GitHub Releases 页面：${RELEASES_URL.replace(/^https:\/\//, "")}`}
+          hint={`用系统默认浏览器打开，不会弹出命令行窗口：${RELEASES_URL.replace(/^https:\/\//, "")}`}
         >
           <button
             type="button"
@@ -649,7 +652,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.15.0</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.0</span>
         </Row>
       </Section>
 
@@ -662,7 +665,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.15.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.16.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

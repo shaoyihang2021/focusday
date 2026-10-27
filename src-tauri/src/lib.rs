@@ -462,6 +462,24 @@ fn write_png(path: String, base64: String) -> Result<(), String> {
     std::fs::write(&path, bytes).map_err(|e| e.to_string())
 }
 
+/// Hands a URL or protocol target to the Windows shell without a console window.
+///
+/// `cmd /C start` used to flash a black console for a split second. `url.dll`'s
+/// `FileProtocolHandler` performs the same ShellExecute call inside a GUI
+/// process, so the default browser / settings app opens silently.
+#[cfg(target_os = "windows")]
+fn open_with_default_handler(target: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    std::process::Command::new("rundll32.exe")
+        .args(["url.dll,FileProtocolHandler", target])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 /// Opens the Windows "专注助手 / 勿扰" settings page.
 ///
 /// Windows exposes no public API that lets a third-party app toggle system-wide
@@ -472,12 +490,7 @@ fn write_png(path: String, base64: String) -> Result<(), String> {
 fn open_system_focus_settings() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        // `start "" ms-settings:quiethours` opens the Focus assist page.
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", "ms-settings:quiethours"])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
+        return open_with_default_handler("ms-settings:quiethours");
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -492,10 +505,7 @@ fn open_release_page() -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", URL])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        open_with_default_handler(URL)?;
     }
     #[cfg(target_os = "macos")]
     {

@@ -88,9 +88,9 @@ export default function WidgetApp() {
     : { "data-tauri-drag-region": "true" };
 
   const skinClass: Record<WidgetSkin, string> = {
-    glass: "fd-skin-glass shadow-xl shadow-black/20",
-    solid: "fd-skin-solid shadow-xl shadow-black/25",
-    outline: "fd-skin-outline shadow-lg shadow-black/10",
+    glass: "fd-skin-glass",
+    solid: "fd-skin-solid",
+    outline: "fd-skin-outline",
     ghost: "fd-skin-ghost",
   };
 
@@ -107,25 +107,38 @@ export default function WidgetApp() {
       <div
         className={cn(
           "relative flex h-full w-full flex-col overflow-hidden rounded-2xl",
-          photo ? "fd-skin-photo dark" : skinClass[settings.widgetSkin],
+          photo ? "dark" : "shadow-xl shadow-black/20",
         )}
-        style={{ opacity: settings.widgetOpacity }}
+        style={photo ? { textShadow: "0 1px 3px rgba(0, 0, 0, 0.55)" } : undefined}
       >
+        {/* Opacity only affects the surface, so labels stay crisp at any setting. */}
         {photo ? (
-          <>
+          <div
+            aria-hidden
+            className="fd-skin-photo pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+            style={{ opacity: settings.widgetOpacity }}
+          >
             <img
               src={photo}
               alt=""
               draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
             <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
+              className="absolute inset-0"
               style={{ backgroundColor: `rgba(0, 0, 0, ${settings.widgetBackgroundDim})` }}
             />
-          </>
-        ) : null}
+          </div>
+        ) : (
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-2xl",
+              skinClass[settings.widgetSkin],
+            )}
+            style={{ opacity: settings.widgetOpacity }}
+          />
+        )}
         {/* drag handle — dragging is disabled while the widget is locked */}
         <div
           {...dragProps}

@@ -125,7 +125,11 @@ export default function PomodoroView() {
                   type="button"
                   disabled={timer.running}
                   onClick={() => updateSettings(presetPatch(preset))}
-                  title={`${preset.label}：专注 ${preset.workMin} · 短休息 ${preset.shortMin} · 长休息 ${preset.longMin}`}
+                  title={
+                    timer.running
+                      ? "计时进行中，暂停或结束本轮后可切换预设"
+                      : `${preset.label}：专注 ${preset.workMin} · 短休息 ${preset.shortMin} · 长休息 ${preset.longMin}`
+                  }
                   className={cn(
                     "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors",
                     active

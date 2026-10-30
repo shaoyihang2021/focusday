@@ -25,7 +25,7 @@ import {
   uid,
 } from "./defaults";
 import { broadcastState, loadState, onRemoteState, saveState } from "./persist";
-import { durationFor, initialSeconds } from "../lib/timer";
+import { durationFor, initialSeconds, minutesKeyFor } from "../lib/timer";
 import { todayISO } from "../lib/date";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
 import { applyAccent, applyTheme } from "../lib/theme";
@@ -305,13 +305,14 @@ export const useAppStore = create<Store>((set, get) => ({
   updateSettings: (patch) => {
     const { settings, timer } = get();
     const next: Settings = { ...settings, ...patch };
-    const durationChanged =
-      patch.workMin !== undefined || patch.shortMin !== undefined || patch.longMin !== undefined;
-    // Only mirror a new preset into the clock when the current round has not
-    // started yet. A paused mid-round session keeps its own length.
-    const untouched = timer.remaining === durationFor(timer.mode, settings);
+    // Editing the current phase's length also re-arms the clock, so the new
+    // preset shows up immediately instead of leaving a stale paused round.
+    // Running rounds keep their own length and pick the new preset next round.
+    const key = minutesKeyFor(timer.mode);
+    const editedCurrentPreset = patch[key] !== undefined && patch[key] !== settings[key];
+    const stopwatchFocus = timer.timing === "stopwatch" && timer.mode === "work";
     const nextTimer =
-      durationChanged && !timer.running && untouched
+      editedCurrentPreset && !timer.running && !stopwatchFocus
         ? { ...timer, remaining: durationFor(timer.mode, next) }
         : timer;
     set({ settings: next, timer: nextTimer });

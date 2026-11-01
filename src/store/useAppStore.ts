@@ -13,6 +13,7 @@ import type {
   TimerMode,
   TimerTiming,
   Todo,
+  PresetId,
 } from "../types";
 import {
   TAG_COLORS,
@@ -26,6 +27,7 @@ import {
 } from "./defaults";
 import { broadcastState, loadState, onRemoteState, saveState } from "./persist";
 import { durationFor, initialSeconds, minutesKeyFor } from "../lib/timer";
+import { activePresetId, rememberPresetEdit } from "../lib/timerPresets";
 import { todayISO } from "../lib/date";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
 import { applyAccent, applyTheme } from "../lib/theme";
@@ -82,6 +84,8 @@ interface Actions {
   togglePinned: (id: string) => void;
 
   updateSettings: (patch: Partial<Settings>) => void;
+  /** Applies a preset chip using the numbers it currently remembers. */
+  applyPreset: (id: PresetId) => void;
   setTheme: (theme: ThemeMode) => void;
 
   /** Shows / hides the desktop widget; every entry point shares this state. */
@@ -312,6 +316,17 @@ export const useAppStore = create<Store>((set, get) => ({
   updateSettings: (patch) => {
     const { settings, timer } = get();
     const next: Settings = { ...settings, ...patch };
+    // While a preset is active, tweaking any length rewrites that preset too,
+    // so switching to another chip and back keeps the numbers the user chose.
+    const durationEdited =
+      patch.workMin !== undefined || patch.shortMin !== undefined || patch.longMin !== undefined;
+    if (durationEdited) {
+      next.presetValues = rememberPresetEdit(next.presetValues, activePresetId(settings), {
+        workMin: next.workMin,
+        shortMin: next.shortMin,
+        longMin: next.longMin,
+      });
+    }
     // Editing the current phase's length also re-arms the clock, so the new
     // preset shows up immediately instead of leaving a stale paused round.
     // Running rounds keep their own length and pick the new preset next round.
@@ -326,6 +341,20 @@ export const useAppStore = create<Store>((set, get) => ({
     applyTheme(next.theme);
     applyAccent(next.accent);
     if (patch.notify === true) void ensureNotificationPermission();
+  },
+
+  applyPreset: (id) => {
+    const { settings, timer } = get();
+    const values = settings.presetValues[id];
+    const next: Settings = { ...settings, ...values };
+    const key = minutesKeyFor(timer.mode);
+    const changed = values[key] !== settings[key];
+    const stopwatchFocus = timer.timing === "stopwatch" && timer.mode === "work";
+    const nextTimer =
+      changed && !timer.running && !stopwatchFocus
+        ? { ...timer, remaining: durationFor(timer.mode, next) }
+        : timer;
+    set({ settings: next, timer: nextTimer });
   },
 
   setTheme: (theme) => {

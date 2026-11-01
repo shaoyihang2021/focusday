@@ -7,15 +7,19 @@ import type {
   DayStat,
   FocusByDay,
   Point,
+  PresetId,
   Settings,
   SubStep,
   Tag,
+  TimerPresetValues,
   TimerState,
   Todo,
   WidgetContent,
   WidgetSize,
 } from "../types";
 import { MAX_INTERVAL_DAYS, MIN_INTERVAL_DAYS } from "../lib/countdown";
+import { TIMER_PRESETS, defaultPresetValues } from "../lib/timerPresets";
+import { MINUTES_RANGE } from "../lib/timer";
 
 export const THEME_STORAGE_KEY = "fd-theme";
 
@@ -23,6 +27,7 @@ export const defaultSettings: Settings = {
   workMin: 25,
   shortMin: 5,
   longMin: 15,
+  presetValues: defaultPresetValues,
   longEvery: 4,
   dailyGoalMin: 120,
   weeklyGoalMin: 600,
@@ -157,6 +162,25 @@ function sanitizeWidgetShow(value: unknown): WidgetContent {
     countdown: asBool(raw.countdown, defaultSettings.widgetShow.countdown),
     todo: asBool(raw.todo, defaultSettings.widgetShow.todo),
   };
+}
+
+function clampMinutes(value: unknown, range: { min: number; max: number }, fallback: number): number {
+  return Math.min(range.max, Math.max(range.min, Math.round(asNumber(value, fallback))));
+}
+
+/** Keeps remembered preset numbers inside the same ranges as the steppers. */
+function sanitizePresets(value: unknown): Record<PresetId, TimerPresetValues> {
+  const raw = (value ?? {}) as Partial<Record<PresetId, Partial<TimerPresetValues>>>;
+  const out = {} as Record<PresetId, TimerPresetValues>;
+  for (const preset of TIMER_PRESETS) {
+    const entry = raw[preset.id] ?? {};
+    out[preset.id] = {
+      workMin: clampMinutes(entry.workMin, MINUTES_RANGE.work, preset.defaults.workMin),
+      shortMin: clampMinutes(entry.shortMin, MINUTES_RANGE.short, preset.defaults.shortMin),
+      longMin: clampMinutes(entry.longMin, MINUTES_RANGE.long, preset.defaults.longMin),
+    };
+  }
+  return out;
 }
 
 /** Epoch ms of the start of the current local day. */
@@ -295,6 +319,7 @@ export function sanitizeState(input: unknown): AppState {
       workMin: asNumber(settings.workMin, defaultSettings.workMin),
       shortMin: asNumber(settings.shortMin, defaultSettings.shortMin),
       longMin: asNumber(settings.longMin, defaultSettings.longMin),
+      presetValues: sanitizePresets(settings.presetValues),
       longEvery: asNumber(settings.longEvery, defaultSettings.longEvery),
       dailyGoalMin: Math.min(
         720,

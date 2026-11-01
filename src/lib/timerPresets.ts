@@ -1,37 +1,55 @@
-import type { Settings } from "../types";
+import type { PresetId, Settings, TimerPresetValues } from "../types";
 
 export interface TimerPreset {
-  id: string;
+  id: PresetId;
   label: string;
-  /** `25 / 5 / 15` shown under the label. */
-  hint: string;
-  workMin: number;
-  shortMin: number;
-  longMin: number;
+  /** Factory numbers, used on a fresh install and as a sanitiser fallback. */
+  defaults: TimerPresetValues;
 }
 
-/** Three ready-made rhythms. Applying one only rewrites the three lengths. */
+/** Three ready-made rhythms. Their numbers can be tweaked and are remembered. */
 export const TIMER_PRESETS: TimerPreset[] = [
-  { id: "classic", label: "经典", hint: "25 / 5 / 15", workMin: 25, shortMin: 5, longMin: 15 },
-  { id: "deep", label: "深度", hint: "50 / 10 / 20", workMin: 50, shortMin: 10, longMin: 20 },
-  { id: "sprint", label: "冲刺", hint: "15 / 3 / 10", workMin: 15, shortMin: 3, longMin: 10 },
+  { id: "classic", label: "经典", defaults: { workMin: 25, shortMin: 5, longMin: 15 } },
+  { id: "deep", label: "深度", defaults: { workMin: 50, shortMin: 10, longMin: 20 } },
+  { id: "sprint", label: "冲刺", defaults: { workMin: 15, shortMin: 3, longMin: 10 } },
 ];
 
-/** The preset matching all three current lengths, or null for a custom mix. */
-export function activePreset(settings: Settings): TimerPreset | null {
+/** Fresh-install numbers for every preset. */
+export const defaultPresetValues = TIMER_PRESETS.reduce(
+  (acc, preset) => ({ ...acc, [preset.id]: preset.defaults }),
+  {} as Record<PresetId, TimerPresetValues>,
+);
+
+/** `25 / 5 / 15` shown on the preset chip. */
+export const presetHint = (values: TimerPresetValues): string =>
+  `${values.workMin} / ${values.shortMin} / ${values.longMin}`;
+
+/** The preset whose remembered numbers match the current lengths. */
+export function activePresetId(settings: Settings): PresetId | null {
   return (
-    TIMER_PRESETS.find(
-      (preset) =>
-        preset.workMin === settings.workMin &&
-        preset.shortMin === settings.shortMin &&
-        preset.longMin === settings.longMin,
-    ) ?? null
+    TIMER_PRESETS.find((preset) => {
+      const values = settings.presetValues[preset.id];
+      return (
+        values.workMin === settings.workMin &&
+        values.shortMin === settings.shortMin &&
+        values.longMin === settings.longMin
+      );
+    })?.id ?? null
   );
 }
 
-/** Patch applied through `updateSettings`. */
-export function presetPatch(
-  preset: TimerPreset,
-): Pick<Settings, "workMin" | "shortMin" | "longMin"> {
-  return { workMin: preset.workMin, shortMin: preset.shortMin, longMin: preset.longMin };
+/** Numbers applied when a preset chip is clicked. */
+export const presetPatch = (settings: Settings, id: PresetId): TimerPresetValues =>
+  settings.presetValues[id];
+
+/**
+ * Stores the tweaked numbers back into the active preset, so switching to
+ * another preset and back restores them instead of the factory values.
+ */
+export function rememberPresetEdit(
+  values: Record<PresetId, TimerPresetValues>,
+  activeId: PresetId | null,
+  next: TimerPresetValues,
+): Record<PresetId, TimerPresetValues> {
+  return activeId ? { ...values, [activeId]: next } : values;
 }

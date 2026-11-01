@@ -19,7 +19,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
-import { TIMER_PRESETS, activePreset, presetPatch } from "../lib/timerPresets";
+import { TIMER_PRESETS, activePresetId, presetHint } from "../lib/timerPresets";
 import { Card, Segmented, Stepper, Toggle } from "./ui";
 import ManualSection from "./ManualSection";
 import {
@@ -105,6 +105,7 @@ const HOTKEYS: { value: string; label: string }[] = [
 export default function SettingsView() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const applyPreset = useAppStore((s) => s.applyPreset);
   const setTheme = useAppStore((s) => s.setTheme);
   const hydrate = useAppStore((s) => s.hydrate);
   const resetAll = useAppStore((s) => s.resetAll);
@@ -188,15 +189,16 @@ export default function SettingsView() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Section icon={<LayoutGrid size={16} />} title="时长预设">
-        <Row label="快速预设" hint="一键套用专注 / 短休息 / 长休息时长">
+        <Row label="快速预设" hint="套用预设记住的时长；改数字会存回当前选中的预设">
           <div className="flex flex-wrap justify-end gap-1.5">
             {TIMER_PRESETS.map((preset) => {
-              const active = activePreset(settings)?.id === preset.id;
+              const active = activePresetId(settings) === preset.id;
+              const values = settings.presetValues[preset.id];
               return (
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => updateSettings(presetPatch(preset))}
+                  onClick={() => applyPreset(preset.id)}
                   className={
                     "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors " +
                     (active
@@ -204,7 +206,7 @@ export default function SettingsView() {
                       : "border-line bg-card text-muted hover:text-ink")
                   }
                 >
-                  {preset.label} {preset.hint}
+                  {preset.label} {presetHint(values)}
                 </button>
               );
             })}
@@ -632,7 +634,7 @@ export default function SettingsView() {
       <Section icon={<Download size={16} />} title="更新">
         <Row
           label="检查更新"
-          hint={`用系统默认浏览器打开，不会弹出命令行窗口：${RELEASES_URL.replace(/^https:\/\//, "")}`}
+          hint={`打开 GitHub Releases 页面：${RELEASES_URL.replace(/^https:\/\//, "")}`}
         >
           <button
             type="button"
@@ -643,7 +645,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.2</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.3</span>
         </Row>
       </Section>
 
@@ -656,7 +658,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.16.2 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.16.3 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

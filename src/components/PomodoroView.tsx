@@ -13,7 +13,7 @@ import {
   timerProgress,
 } from "../lib/timer";
 import { todayStat } from "../lib/stats";
-import { TIMER_PRESETS, activePreset, presetPatch } from "../lib/timerPresets";
+import { TIMER_PRESETS, activePresetId, presetHint } from "../lib/timerPresets";
 import type { TimerMode, TimerTiming } from "../types";
 import { Ring } from "./Ring";
 import { Card, Segmented, Stepper } from "./ui";
@@ -49,6 +49,7 @@ export default function PomodoroView() {
   const finishStopwatch = useAppStore((s) => s.finishStopwatch);
   const setActiveTodo = useAppStore((s) => s.setActiveTodo);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const applyPreset = useAppStore((s) => s.applyPreset);
   const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(250);
@@ -118,17 +119,18 @@ export default function PomodoroView() {
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="text-[11px] text-muted">预设</span>
             {TIMER_PRESETS.map((preset) => {
-              const active = activePreset(settings)?.id === preset.id;
+              const active = activePresetId(settings) === preset.id;
+              const values = settings.presetValues[preset.id];
               return (
                 <button
                   key={preset.id}
                   type="button"
                   disabled={timer.running}
-                  onClick={() => updateSettings(presetPatch(preset))}
+                  onClick={() => applyPreset(preset.id)}
                   title={
                     timer.running
                       ? "计时进行中，暂停或结束本轮后可切换预设"
-                      : `${preset.label}：专注 ${preset.workMin} · 短休息 ${preset.shortMin} · 长休息 ${preset.longMin}`
+                      : `${preset.label}：专注 ${values.workMin} · 短休息 ${values.shortMin} · 长休息 ${values.longMin}`
                   }
                   className={cn(
                     "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -138,7 +140,7 @@ export default function PomodoroView() {
                     timer.running && "cursor-not-allowed opacity-45",
                   )}
                 >
-                  {preset.label} {preset.hint}
+                  {preset.label} {presetHint(values)}
                 </button>
               );
             })}

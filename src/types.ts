@@ -118,10 +118,20 @@ export interface Countdown {
   createdAt: number;
 }
 
+export interface TimerPresetValues {
+  workMin: number;
+  shortMin: number;
+  longMin: number;
+}
+
+export type PresetId = "classic" | "deep" | "sprint";
+
 export interface Settings {
   workMin: number;
   shortMin: number;
   longMin: number;
+  /** Remembered numbers behind each quick preset; edits survive chip switching. */
+  presetValues: Record<PresetId, TimerPresetValues>;
   /** Take a long break after every N finished pomodoros. */
   longEvery: number;
   /** Daily / weekly focus goals in minutes; 0 disables the goal. */

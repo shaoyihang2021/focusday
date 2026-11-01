@@ -12,7 +12,9 @@ import type {
   SubStep,
   Tag,
   TimerPresetValues,
+  TimerMode,
   TimerState,
+  TimerTiming,
   Todo,
   WidgetContent,
   WidgetSize,
@@ -90,6 +92,7 @@ export const widgetScale: Record<WidgetSize, number> = {
 export const defaultTimer: TimerState = {
   mode: "work",
   timing: "countdown",
+  duration: defaultSettings.workMin * 60,
   running: false,
   endAt: null,
   remaining: defaultSettings.workMin * 60,
@@ -250,6 +253,22 @@ function sanitizeFocusByDay(value: unknown): FocusByDay {
   return out;
 }
 
+/** Length a saved round falls back to when older data has no `duration`. */
+function fallbackDuration(
+  mode: TimerMode,
+  timing: TimerTiming,
+  settings: Partial<Settings>,
+): number {
+  if (timing === "stopwatch" && mode === "work") return 0;
+  const minutes =
+    mode === "short"
+      ? asNumber(settings.shortMin, defaultSettings.shortMin)
+      : mode === "long"
+        ? asNumber(settings.longMin, defaultSettings.longMin)
+        : asNumber(settings.workMin, defaultSettings.workMin);
+  return Math.max(0, Math.round(minutes * 60));
+}
+
 /**
  * Merges whatever we read from disk with the current defaults. This keeps old
  * data files valid after new fields are introduced.
@@ -258,6 +277,14 @@ export function sanitizeState(input: unknown): AppState {
   const raw = (input ?? {}) as Partial<AppState>;
   const settings = (raw.settings ?? {}) as Partial<Settings>;
   const timer = (raw.timer ?? {}) as Partial<TimerState>;
+
+  const timerMode: TimerMode =
+    timer.mode === "work" || timer.mode === "short" || timer.mode === "long"
+      ? timer.mode
+      : defaultTimer.mode;
+  const timerTiming: TimerTiming =
+    timer.timing === "stopwatch" ? "stopwatch" : "countdown";
+  const modeDuration = fallbackDuration(timerMode, timerTiming, settings);
 
   const tags = Array.isArray(raw.tags) ? raw.tags.filter(isTag) : defaultTags;
   const knownTagIds = new Set(tags.map((t) => t.id));
@@ -371,14 +398,12 @@ export function sanitizeState(input: unknown): AppState {
           : defaultSettings.theme,
     },
     timer: {
-      mode:
-        timer.mode === "work" || timer.mode === "short" || timer.mode === "long"
-          ? timer.mode
-          : defaultTimer.mode,
-      timing: timer.timing === "stopwatch" ? ("stopwatch" as const) : ("countdown" as const),
+      mode: timerMode,
+      timing: timerTiming,
+      duration: Math.max(0, asNumber(timer.duration, modeDuration)),
       running: asBool(timer.running, false),
       endAt: typeof timer.endAt === "number" ? timer.endAt : null,
-      remaining: asNumber(timer.remaining, defaultTimer.remaining),
+      remaining: Math.max(0, asNumber(timer.remaining, modeDuration)),
       startedAt:
         timer.timing === "stopwatch" && typeof timer.startedAt === "number"
           ? timer.startedAt

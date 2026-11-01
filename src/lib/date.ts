@@ -104,9 +104,11 @@ export function countdownInfo(
       lunarLeap = event.leapMonth === true;
     }
   } else if (event.repeat === "yearly") {
-    target = new Date(today.getFullYear(), base.getMonth(), base.getDate());
+    // Clamp Feb 29 to Feb 28 in non-leap years instead of letting Date roll
+    // the target forward into March.
+    target = clampToMonth(today.getFullYear(), base.getMonth(), base.getDate());
     if (target.getTime() < today.getTime()) {
-      target = new Date(today.getFullYear() + 1, base.getMonth(), base.getDate());
+      target = clampToMonth(today.getFullYear() + 1, base.getMonth(), base.getDate());
     }
   } else if (event.repeat === "monthly") {
     target = nextMonthly(today, base.getDate());

@@ -29,6 +29,14 @@ export const MINUTES_RANGE: Record<TimerMode, { min: number; max: number }> = {
   long: { min: 5, max: 60 },
 };
 
+/**
+ * Minutes a finished round contributes to stats. Uses the round's own length
+ * rather than the current settings, so changing a preset mid-round cannot
+ * rewrite what the finished session earned.
+ */
+export const roundMinutes = (timer: TimerState): number =>
+  timer.timing === "stopwatch" ? 0 : Math.round(Math.max(0, timer.duration) / 60);
+
 /** Seconds left, derived from the wall clock so every window agrees. */
 export const computeRemaining = (timer: TimerState, now: number): number =>
   timer.running && timer.endAt
@@ -56,7 +64,7 @@ export const timerProgress = (timer: TimerState, settings: Settings, now: number
   if (timer.timing === "stopwatch" && timer.mode === "work") {
     return Math.min(1, Math.max(0, displaySeconds(timer, now) / 3600));
   }
-  const total = durationFor(timer.mode, settings);
+  const total = timer.duration > 0 ? timer.duration : durationFor(timer.mode, settings);
   if (total <= 0) return 0;
   return Math.min(1, Math.max(0, 1 - computeRemaining(timer, now) / total));
 };

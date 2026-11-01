@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { displaySeconds, elapsedSeconds, timerProgress } from "../src/lib/timer.ts";
+import { displaySeconds, elapsedSeconds, roundMinutes, timerProgress } from "../src/lib/timer.ts";
 
 const settings = { workMin: 25, shortMin: 5, longMin: 15 } as never;
 const base = {
@@ -8,6 +8,7 @@ const base = {
   running: false,
   endAt: null,
   remaining: 1500,
+  duration: 1500,
   round: 0,
   activeTodoId: null,
   timing: "countdown" as const,
@@ -47,4 +48,17 @@ test("倒计时进度与正计时小时进度都被夹在 0–1", () => {
     startedAt: Date.now() - 30 * 60_000,
   };
   assert.ok(timerProgress(stopwatch, settings, Date.now()) > 0.49);
+});
+
+test("进度按回合自身时长计算，运行中改设置不会拉伸进度", () => {
+  const now = 1_000_000;
+  const drifted = {...base, running: true, endAt: now + 600_000, remaining: 600};
+  const longerSettings = { workMin: 50, shortMin: 10, longMin: 20 } as never;
+  assert.equal(timerProgress(drifted, longerSettings, now), 0.6);
+});
+
+test("完成的回合按自身时长折算分钟，而不是当前设置", () => {
+  assert.equal(roundMinutes(base), 25);
+  assert.equal(roundMinutes({ ...base, duration: 90 }), 2);
+  assert.equal(roundMinutes({ ...base, duration: 0 }), 0);
 });

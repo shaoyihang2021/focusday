@@ -185,6 +185,8 @@ export interface TimerState {
   mode: TimerMode;
   /** Countdown or open-ended stopwatch (only used by work rounds). */
   timing: TimerTiming;
+  /** Seconds the current countdown round was configured for; 0 for a stopwatch. */
+  duration: number;
   running: boolean;
   /** Epoch ms when the current run ends. Only meaningful while running. */
   endAt: number | null;

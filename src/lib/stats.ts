@@ -223,8 +223,8 @@ export interface RangeBar {
  * the exported image stay identical.
  */
 export function rangeBars(focusByDay: FocusByDay, range: StatsRange): RangeBar[] {
+  const now = new Date();
   if (range === "year") {
-    const now = new Date();
     return lastMonths(focusByDay, 12).map((bucket) => ({
       key: `${bucket.year}-${bucket.month}`,
       label: `${bucket.month}月`,
@@ -234,12 +234,13 @@ export function rangeBars(focusByDay: FocusByDay, range: StatsRange): RangeBar[]
       emphasis: bucket.year === now.getFullYear() && bucket.month === now.getMonth() + 1,
     }));
   }
+  const today = todayISO();
   return lastDays(focusByDay, range === "week" ? 7 : 30).map((day) => ({
     key: day.date,
     label: weekdayName(day.date),
     sub: shortDate(day.date),
     minutes: day.stat.minutes,
     count: day.stat.count,
-    emphasis: day.date === todayISO(),
+    emphasis: day.date === today,
   }));
 }

@@ -26,7 +26,7 @@ import {
   uid,
 } from "./defaults";
 import { broadcastState, loadState, onRemoteState, saveState } from "./persist";
-import { durationFor, initialSeconds, minutesKeyFor } from "../lib/timer";
+import { durationFor, initialSeconds, minutesKeyFor, roundMinutes } from "../lib/timer";
 import { activePresetId, rememberPresetEdit } from "../lib/timerPresets";
 import { todayISO } from "../lib/date";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
@@ -335,7 +335,7 @@ export const useAppStore = create<Store>((set, get) => ({
     const stopwatchFocus = timer.timing === "stopwatch" && timer.mode === "work";
     const nextTimer =
       editedCurrentPreset && !timer.running && !stopwatchFocus
-        ? { ...timer, remaining: durationFor(timer.mode, next) }
+        ? { ...timer, remaining: durationFor(timer.mode, next), duration: durationFor(timer.mode, next) }
         : timer;
     set({ settings: next, timer: nextTimer });
     applyTheme(next.theme);
@@ -352,7 +352,7 @@ export const useAppStore = create<Store>((set, get) => ({
     const stopwatchFocus = timer.timing === "stopwatch" && timer.mode === "work";
     const nextTimer =
       changed && !timer.running && !stopwatchFocus
-        ? { ...timer, remaining: durationFor(timer.mode, next) }
+        ? { ...timer, remaining: durationFor(timer.mode, next), duration: durationFor(timer.mode, next) }
         : timer;
     set({ settings: next, timer: nextTimer });
   },
@@ -386,12 +386,15 @@ export const useAppStore = create<Store>((set, get) => ({
       });
       return;
     }
-    const remaining = timer.remaining > 0 ? timer.remaining : durationFor(timer.mode, settings);
+    const fresh = timer.remaining <= 0;
+    const remaining = fresh ? initialSeconds(timer.mode, settings, timer.timing) : timer.remaining;
+    const duration = fresh || timer.duration <= 0 ? remaining : timer.duration;
     set({
       timer: {
         ...timer,
         running: true,
         remaining,
+        duration,
         startedAt: null,
         endAt: Date.now() + remaining * 1000,
       },
@@ -423,13 +426,15 @@ export const useAppStore = create<Store>((set, get) => ({
 
   resetTimer: () => {
     const { timer, settings } = get();
+    const remaining = initialSeconds(timer.mode, settings, timer.timing);
     set({
       timer: {
         ...timer,
         running: false,
         endAt: null,
         startedAt: null,
-        remaining: initialSeconds(timer.mode, settings, timer.timing),
+        remaining,
+        duration: remaining,
       },
     });
   },
@@ -437,6 +442,7 @@ export const useAppStore = create<Store>((set, get) => ({
   skip: () => {
     const { timer, settings } = get();
     const nextMode: TimerMode = timer.mode === "work" ? "short" : "work";
+    const remaining = initialSeconds(nextMode, settings, timer.timing);
     set({
       timer: {
         ...timer,
@@ -444,13 +450,15 @@ export const useAppStore = create<Store>((set, get) => ({
         running: false,
         endAt: null,
         startedAt: null,
-        remaining: initialSeconds(nextMode, settings, timer.timing),
+        remaining,
+        duration: remaining,
       },
     });
   },
 
   setMode: (mode) => {
     const { timer, settings } = get();
+    const remaining = initialSeconds(mode, settings, timer.timing);
     set({
       timer: {
         ...timer,
@@ -458,7 +466,8 @@ export const useAppStore = create<Store>((set, get) => ({
         running: false,
         endAt: null,
         startedAt: null,
-        remaining: initialSeconds(mode, settings, timer.timing),
+        remaining,
+        duration: remaining,
       },
     });
   },
@@ -466,6 +475,7 @@ export const useAppStore = create<Store>((set, get) => ({
   setTiming: (timing) => {
     const { timer, settings } = get();
     if (timer.running) return;
+    const remaining = initialSeconds(timer.mode, settings, timing);
     set({
       timer: {
         ...timer,
@@ -473,7 +483,8 @@ export const useAppStore = create<Store>((set, get) => ({
         running: false,
         endAt: null,
         startedAt: null,
-        remaining: initialSeconds(timer.mode, settings, timing),
+        remaining,
+        duration: remaining,
       },
     });
   },
@@ -506,6 +517,7 @@ export const useAppStore = create<Store>((set, get) => ({
     }
 
     const nextMode: TimerMode = "short";
+    const nextRemaining = durationFor(nextMode, settings);
     set({
       todos: nextTodos,
       focusByDay: nextFocusByDay,
@@ -515,7 +527,8 @@ export const useAppStore = create<Store>((set, get) => ({
         running: false,
         endAt: null,
         startedAt: null,
-        remaining: durationFor(nextMode, settings),
+        remaining: nextRemaining,
+        duration: nextRemaining,
       },
     });
 
@@ -537,16 +550,19 @@ export const useAppStore = create<Store>((set, get) => ({
     const nextRound = finished === "work" ? timer.round + 1 : timer.round;
     const nextMode: TimerMode =
       finished === "work" ? (nextRound % every === 0 ? "long" : "short") : "work";
-    const duration = initialSeconds(nextMode, settings, timer.timing);
+    const nextDuration = initialSeconds(nextMode, settings, timer.timing);
     const autoStart =
       settings.autoStart && !(timer.timing === "stopwatch" && nextMode === "work");
+    // Credit the length this round actually ran, not whatever the preset says
+    // now — a mid-round preset change must not rewrite finished sessions.
+    const workedMinutes = finished === "work" ? roundMinutes(timer) : 0;
 
     const activeId = timer.activeTodoId;
     const nextTodos =
       finished === "work" && activeId
         ? todos.map((t) =>
             t.id === activeId
-              ? { ...t, completed: t.completed + 1, focusMinutes: t.focusMinutes + settings.workMin }
+              ? { ...t, completed: t.completed + 1, focusMinutes: t.focusMinutes + workedMinutes }
               : t,
           )
         : todos;
@@ -559,7 +575,7 @@ export const useAppStore = create<Store>((set, get) => ({
       nextFocusByDay = {
         ...focusByDay,
         [key]: {
-          minutes: previous.minutes + settings.workMin,
+          minutes: previous.minutes + workedMinutes,
           count: previous.count + 1,
         },
       };
@@ -573,9 +589,10 @@ export const useAppStore = create<Store>((set, get) => ({
         mode: nextMode,
         round: finished === "work" ? nextRound % every : timer.round,
         running: autoStart,
-        endAt: autoStart ? Date.now() + duration * 1000 : null,
+        endAt: autoStart ? Date.now() + nextDuration * 1000 : null,
         startedAt: null,
-        remaining: duration,
+        remaining: nextDuration,
+        duration: nextDuration,
       },
     });
 

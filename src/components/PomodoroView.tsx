@@ -10,6 +10,7 @@ import {
   minutesFor,
   minutesKeyFor,
   modeLabel,
+  roundMinutes,
   timerProgress,
 } from "../lib/timer";
 import { todayStat } from "../lib/stats";
@@ -172,7 +173,7 @@ export default function PomodoroView() {
               {timer.running ? (
                 // While a round is running its length is fixed, so only show it.
                 <span className="text-sm font-semibold tabular-nums text-ink">
-                  {minutesFor(timer.mode, settings)} 分钟
+                  {roundMinutes(timer)} 分钟
                 </span>
               ) : (
                 <Stepper

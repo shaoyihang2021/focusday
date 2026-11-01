@@ -3,8 +3,18 @@ import { displaySeconds, formatClock, modeLabel, timerProgress } from "./timer";
 import { todayStat } from "./stats";
 import { setTrayProgress, updateTrayTooltip } from "./widget";
 
-const accentColor = (): string =>
-  getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#f74a2c";
+let lastAccentKey = "";
+let lastAccentColor = "#f74a2c";
+
+/** Reads the accent from the theme once per accent / light-dark switch. */
+const accentColor = (accent: string, dark: boolean): string => {
+  const key = `${accent}|${dark}`;
+  if (key === lastAccentKey) return lastAccentColor;
+  lastAccentKey = key;
+  lastAccentColor =
+    getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#f74a2c";
+  return lastAccentColor;
+};
 
 /**
  * Mirrors the timer into the system tray.
@@ -22,9 +32,10 @@ export function startTraySync(): () => void {
   const tick = () => {
     const { timer, settings, focusByDay } = useAppStore.getState();
     const running = settings.trayCountdown && timer.running;
-    const seconds = displaySeconds(timer, Date.now());
-    const progress = timerProgress(timer, settings, Date.now());
-    const color = accentColor();
+    const now = Date.now();
+    const seconds = displaySeconds(timer, now);
+    const progress = timerProgress(timer, settings, now);
+    const color = accentColor(settings.accent, document.documentElement.classList.contains("dark"));
     const label =
       timer.mode === "work" && timer.timing === "stopwatch" ? "正计时" : modeLabel(timer.mode);
     const today = todayStat(focusByDay);

@@ -8,7 +8,7 @@ import CountdownView from "./components/CountdownView";
 import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
 import { flushPersist, useAppStore } from "./store/useAppStore";
-import { setWidgetVisible, syncCountdownWidgets } from "./lib/widget";
+import { syncCountdownWidgets } from "./lib/widget";
 import { isTauri } from "./lib/env";
 import type { View } from "./types";
 
@@ -41,7 +41,9 @@ function queueCountdownWidgetSync(ids: string[]): void {
 
 export default function App() {
   const [view, setView] = useState<View>("pomodoro");
-  const [widgetOn, setWidgetOn] = useState(false);
+  const widgetOn = useAppStore((s) => s.widgetVisible);
+  const setWidgetVisible = useAppStore((s) => s.setWidgetVisible);
+  const syncWidgetVisible = useAppStore((s) => s.syncWidgetVisible);
   const theme = useAppStore((s) => s.settings.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -60,17 +62,18 @@ export default function App() {
     queueCountdownWidgetSync(pinnedIds ? pinnedIds.split("|") : []);
   }, [pinnedIds, tauri]);
 
+  useEffect(() => {
+    if (!tauri) return;
+    syncWidgetVisible();
+  }, [tauri, syncWidgetVisible]);
+
   // Switching views should start at the top rather than keep the previous
   // scroll offset, which could hide headings and toolbars.
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0 });
   }, [view]);
 
-  const toggleWidget = () => {
-    const next = !widgetOn;
-    setWidgetOn(next);
-    void setWidgetVisible(next);
-  };
+  const toggleWidget = () => setWidgetVisible(!widgetOn);
 
   return (
     <div className="flex h-full">

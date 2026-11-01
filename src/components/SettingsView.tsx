@@ -6,7 +6,6 @@ import {
   Download,
   ExternalLink,
   Eye,
-  EyeOff,
   ImagePlus,
   Keyboard,
   LayoutGrid,
@@ -27,7 +26,6 @@ import {
   applyWidgetWindowSettings,
   setAutoLaunch,
   setGlobalShortcut,
-  setWidgetVisible,
 } from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
 import { pickWidgetBackground } from "../lib/widgetBackground";
@@ -110,6 +108,8 @@ export default function SettingsView() {
   const setTheme = useAppStore((s) => s.setTheme);
   const hydrate = useAppStore((s) => s.hydrate);
   const resetAll = useAppStore((s) => s.resetAll);
+  const widgetVisible = useAppStore((s) => s.widgetVisible);
+  const setWidgetVisible = useAppStore((s) => s.setWidgetVisible);
   const tauri = isTauri();
 
   const [status, setStatus] = useState<string | null>(null);
@@ -440,26 +440,17 @@ export default function SettingsView() {
       </Section>
 
       <Section icon={<Eye size={16} />} title="桌面小组件">
-        <Row label="显示桌面小组件" hint={tauri ? "独立浮窗，实时显示计时与倒数" : "仅在桌面客户端中可用"}>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={!tauri}
-              onClick={() => void setWidgetVisible(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
-            >
-              <Eye size={14} /> 显示
-            </button>
-            <button
-              type="button"
-              disabled={!tauri}
-              onClick={() => void setWidgetVisible(false)}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <EyeOff size={14} /> 隐藏
-            </button>
-          </div>
-        </Row>
+        <Toggle
+          checked={widgetVisible}
+          onChange={setWidgetVisible}
+          disabled={!tauri}
+          label="显示桌面小组件"
+          hint={
+            tauri
+              ? "与顶栏按钮、托盘菜单同步；关闭后小组件会隐藏到后台"
+              : "仅在桌面客户端中可用"
+          }
+        />
         <Toggle
           checked={settings.widgetAlwaysOnTop}
           onChange={(v) => {
@@ -652,7 +643,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.1</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.2</span>
         </Row>
       </Section>
 
@@ -665,7 +656,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.16.1 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.16.2 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

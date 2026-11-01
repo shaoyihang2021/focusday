@@ -17,6 +17,28 @@ export async function setWidgetVisible(visible: boolean): Promise<void> {
   await invoke("toggle_widget", { visible });
 }
 
+/** Whether the widget window is currently on screen (Tauri only). */
+export async function isWidgetVisible(): Promise<boolean> {
+  return (await invoke<boolean>("widget_is_visible")) ?? false;
+}
+
+let watchingVisibility = false;
+
+/**
+ * Reports the current widget visibility and follows later changes made outside
+ * the main window (tray menu, the widget's own hide button, Alt+F4).
+ * Registers a single listener per webview.
+ */
+export async function watchWidgetVisibility(
+  onChange: (visible: boolean) => void,
+): Promise<void> {
+  if (!isTauri() || watchingVisibility) return;
+  watchingVisibility = true;
+  const { listen } = await import("@tauri-apps/api/event");
+  await listen<boolean>("fd://widget-visible", (event) => onChange(event.payload));
+  onChange(await isWidgetVisible());
+}
+
 /** Opens / closes the desktop window of every pinned countdown (Tauri only). */
 export async function syncCountdownWidgets(ids: string[]): Promise<void> {
   await invoke("sync_countdown_widgets", { ids });

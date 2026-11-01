@@ -29,6 +29,7 @@ import { durationFor, initialSeconds, minutesKeyFor } from "../lib/timer";
 import { todayISO } from "../lib/date";
 import { ensureNotificationPermission, notify, playChime } from "../lib/notify";
 import { applyAccent, applyTheme } from "../lib/theme";
+import { setWidgetVisible as applyWidgetVisible, watchWidgetVisibility } from "../lib/widget";
 
 export interface NewCountdown {
   title: string;
@@ -83,6 +84,11 @@ interface Actions {
   updateSettings: (patch: Partial<Settings>) => void;
   setTheme: (theme: ThemeMode) => void;
 
+  /** Shows / hides the desktop widget; every entry point shares this state. */
+  setWidgetVisible: (visible: boolean) => void;
+  /** Loads the real window state and follows tray / widget-side changes. */
+  syncWidgetVisible: () => void;
+
   start: () => void;
   pause: () => void;
   toggleRun: () => void;
@@ -99,7 +105,7 @@ interface Actions {
   resetAll: () => void;
 }
 
-export type Store = AppState & Actions;
+export type Store = AppState & { widgetVisible: boolean } & Actions;
 
 const snapshot = (s: Store): AppState => ({
   todos: s.todos,
@@ -129,6 +135,7 @@ export async function flushPersist(): Promise<void> {
 
 export const useAppStore = create<Store>((set, get) => ({
   ...defaultState,
+  widgetVisible: false,
 
   hydrate: (next) => {
     set({
@@ -324,6 +331,15 @@ export const useAppStore = create<Store>((set, get) => ({
   setTheme: (theme) => {
     set((s) => ({ settings: { ...s.settings, theme } }));
     applyTheme(theme);
+  },
+
+  setWidgetVisible: (visible) => {
+    set({ widgetVisible: visible });
+    void applyWidgetVisible(visible);
+  },
+
+  syncWidgetVisible: () => {
+    void watchWidgetVisibility((visible) => set({ widgetVisible: visible }));
   },
 
   start: () => {

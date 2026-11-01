@@ -10,7 +10,6 @@ import { todayStat } from "../lib/stats";
 import {
   applyWidgetWindowSettings,
   focusMainWindow,
-  hideSelf,
   onWidgetMoved,
   restoreWidgetPosition,
 } from "../lib/widget";
@@ -24,6 +23,7 @@ export default function WidgetApp() {
   const countdowns = useAppStore((s) => s.countdowns);
   const toggleRun = useAppStore((s) => s.toggleRun);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const setWidgetVisible = useAppStore((s) => s.setWidgetVisible);
   const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(500);
@@ -177,7 +177,7 @@ export default function WidgetApp() {
             </button>
             <button
               type="button"
-              onClick={() => void hideSelf()}
+              onClick={() => setWidgetVisible(false)}
               title="隐藏小组件"
               className="grid h-5 w-5 place-items-center rounded-md text-muted transition-colors hover:text-rose-500"
             >

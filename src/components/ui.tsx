@@ -57,9 +57,10 @@ interface ToggleProps {
   onChange: (next: boolean) => void;
   label: string;
   hint?: string;
+  disabled?: boolean;
 }
 
-export function Toggle({ checked, onChange, label, hint }: ToggleProps) {
+export function Toggle({ checked, onChange, label, hint, disabled = false }: ToggleProps) {
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <div className="min-w-0">
@@ -70,10 +71,12 @@ export function Toggle({ checked, onChange, label, hint }: ToggleProps) {
         type="button"
         role="switch"
         aria-checked={checked}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
           checked ? "bg-brand" : "bg-black/15 dark:bg-white/20",
+          disabled && "cursor-not-allowed opacity-45",
         )}
       >
         <span

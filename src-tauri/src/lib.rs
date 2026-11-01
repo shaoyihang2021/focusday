@@ -4,7 +4,8 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, LogicalSize, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Emitter, LogicalSize, Manager, Runtime, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -14,6 +15,9 @@ const WIDGET_LABEL: &str = "widget";
 const MAIN_LABEL: &str = "main";
 const WIDGET_ROUTE: &str = "index.html#/widget";
 const TRAY_ID: &str = "focusday-tray";
+/// Pushed to the main window whenever the widget appears or disappears, so the
+/// header button, the settings switch and the tray menu never disagree.
+const WIDGET_VISIBLE_EVENT: &str = "fd://widget-visible";
 
 /// Base (100%) size of the widget window, in logical pixels.
 const WIDGET_BASE_W: f64 = 324.0;
@@ -44,7 +48,7 @@ fn cascade_position(index: usize) -> (f64, f64) {
 }
 
 fn create_widget<R: Runtime>(app: &AppHandle<R>, visible: bool) -> Result<WebviewWindow<R>, String> {
-    WebviewWindowBuilder::new(app, WIDGET_LABEL, WebviewUrl::App(WIDGET_ROUTE.into()))
+    let window = WebviewWindowBuilder::new(app, WIDGET_LABEL, WebviewUrl::App(WIDGET_ROUTE.into()))
         .title("FocusDay 小组件")
         .inner_size(WIDGET_BASE_W, WIDGET_BASE_H)
         .min_inner_size(240.0, 160.0)
@@ -56,7 +60,26 @@ fn create_widget<R: Runtime>(app: &AppHandle<R>, visible: bool) -> Result<Webvie
         .shadow(false)
         .visible(visible)
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // A destroyed widget (e.g. Alt+F4) must turn the toggle back off.
+    let handle = app.clone();
+    window.on_window_event(move |event| {
+        if matches!(event, WindowEvent::Destroyed) {
+            notify_widget_visible(&handle);
+        }
+    });
+
+    Ok(window)
+}
+
+/// Tells the main window whether the widget window is currently on screen.
+fn notify_widget_visible<R: Runtime>(app: &AppHandle<R>) {
+    let visible = app
+        .get_webview_window(WIDGET_LABEL)
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false);
+    let _ = app.emit_to(MAIN_LABEL, WIDGET_VISIBLE_EVENT, visible);
 }
 
 /// Brings the main window back to the front.
@@ -77,12 +100,14 @@ fn show_widget<R: Runtime>(app: &AppHandle<R>) {
             let _ = create_widget(app, true);
         }
     }
+    notify_widget_visible(app);
 }
 
 fn hide_widget<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
         let _ = window.hide();
     }
+    notify_widget_visible(app);
 }
 
 /// Shows the main window when it is hidden, hides it when it is visible.
@@ -108,6 +133,14 @@ async fn toggle_widget(app: AppHandle, visible: bool) -> Result<(), String> {
         hide_widget(&app);
     }
     Ok(())
+}
+
+/// Reports whether the widget window is currently visible.
+#[tauri::command]
+fn widget_is_visible(app: AppHandle) -> bool {
+    app.get_webview_window(WIDGET_LABEL)
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false)
 }
 
 /// Keeps the widget window's always-on-top flag in sync with user settings.
@@ -593,6 +626,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             toggle_widget,
+            widget_is_visible,
             set_widget_always_on_top,
             set_widget_size,
             focus_main_window,

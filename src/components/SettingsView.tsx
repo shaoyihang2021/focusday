@@ -29,7 +29,7 @@ import {
 } from "../lib/widget";
 import { exportBackup, importBackup } from "../lib/backup";
 import { pickWidgetBackground } from "../lib/widgetBackground";
-import { RELEASES_URL, openReleasePage } from "../lib/links";
+import { openReleasePage } from "../lib/links";
 import { isTauri } from "../lib/env";
 import { formatDate, todayISO } from "../lib/date";
 import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
@@ -632,20 +632,19 @@ export default function SettingsView() {
       </Section>
 
       <Section icon={<Download size={16} />} title="更新">
-        <Row
-          label="检查更新"
-          hint={`打开 GitHub Releases 页面：${RELEASES_URL.replace(/^https:\/\//, "")}`}
-        >
+        <Row label="检查更新" hint="在 GitHub Releases 查看并下载最新安装包">
           <button
             type="button"
             onClick={() => void openReleasePage()}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+            title="打开 GitHub Releases"
+            aria-label="打开 GitHub Releases"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink transition-colors hover:bg-solid"
           >
-            <ExternalLink size={14} /> 打开更新页面
+            <ExternalLink size={15} />
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.3</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.4</span>
         </Row>
       </Section>
 
@@ -658,7 +657,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.16.3 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.16.4 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
     </div>
   );

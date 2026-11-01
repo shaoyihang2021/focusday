@@ -76,12 +76,30 @@ export default function PomodoroView() {
   const phase: Phase = timer.mode === "work" ? "focus" : "rest";
   const range = MINUTES_RANGE[timer.mode];
 
+  // Switching modes rebuilds the clock from scratch, so a round that is running
+  // or has already used time must be confirmed first — otherwise a stray tap on
+  //「休息」would silently wipe the focus progress.
+  const roundInProgress =
+    timer.running || (stopwatchFocus ? timer.remaining > 0 : timer.remaining < total);
+  const confirmDiscard = (): boolean =>
+    !roundInProgress ||
+    window.confirm(`当前${modeLabel(timer.mode)}还未结束，切换会重置本轮进度，确定继续吗？`);
+
   const changePhase = (next: Phase) => {
     if (next === "focus") {
-      if (timer.mode !== "work") setMode("work");
+      if (timer.mode === "work" || !confirmDiscard()) return;
+      setMode("work");
     } else if (timer.mode === "work") {
+      // Only the work -> break direction discards something here.
+      if (!confirmDiscard()) return;
       setMode("short");
     }
+  };
+
+  /** Short ↔ long break also restarts the break clock. */
+  const changeBreakMode = (next: TimerMode) => {
+    if (next === timer.mode || !confirmDiscard()) return;
+    setMode(next);
   };
 
   // Compute the key explicitly so TypeScript keeps the Partial<Settings> shape.
@@ -109,7 +127,7 @@ export default function PomodoroView() {
           </div>
 
           {phase === "rest" ? (
-            <Segmented options={REST_PRESETS} value={timer.mode} onChange={setMode} />
+            <Segmented options={REST_PRESETS} value={timer.mode} onChange={changeBreakMode} />
           ) : (
             <div className={cn(timer.running && "pointer-events-none opacity-45")}>
               <Segmented options={TIMINGS} value={timer.timing} onChange={setTiming} />

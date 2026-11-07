@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { Card, EmptyState, Segmented } from "./ui";
+import { Card, ConfirmDialog, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
 import { humanizeMinutes } from "../lib/timer";
 import type { RepeatMode, Tag, Todo } from "../types";
@@ -120,6 +120,7 @@ export default function TodoView() {
   const [stepDraft, setStepDraft] = useState<Record<string, string>>({});
   const [dragStep, setDragStep] = useState<{ todoId: string; index: number } | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
 
   const toggleExpanded = (id: string) =>
     setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -172,11 +173,12 @@ export default function TodoView() {
     setNewTag("");
   };
 
-  const confirmRemoveTag = (tag: Tag) => {
-    if (!window.confirm(`删除标签「${tag.name}」？它会同时从所有任务上移除。`)) return;
-    removeTag(tag.id);
-    setDraftTags((prev) => prev.filter((id) => id !== tag.id));
-    setTagFilter((prev) => prev.filter((id) => id !== tag.id));
+  const removeConfirmedTag = () => {
+    if (!tagToDelete) return;
+    removeTag(tagToDelete.id);
+    setDraftTags((prev) => prev.filter((id) => id !== tagToDelete.id));
+    setTagFilter((prev) => prev.filter((id) => id !== tagToDelete.id));
+    setTagToDelete(null);
   };
 
   return (
@@ -246,7 +248,7 @@ export default function TodoView() {
               tag={tag}
               active={draftTags.includes(tag.id)}
               onClick={() => toggleDraftTag(tag.id)}
-              onRemove={() => confirmRemoveTag(tag)}
+              onRemove={() => setTagToDelete(tag)}
             />
           ))}
           <input
@@ -560,6 +562,16 @@ export default function TodoView() {
           })
         )}
       </Card>
+
+      <ConfirmDialog
+        open={tagToDelete !== null}
+        title={`删除标签「${tagToDelete?.name ?? ""}」？`}
+        description="这个标签会同时从所有任务上移除，任务本身和专注记录不受影响。"
+        confirmText="删除标签"
+        tone="danger"
+        onConfirm={removeConfirmedTag}
+        onCancel={() => setTagToDelete(null)}
+      />
     </div>
   );
 }

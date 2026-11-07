@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../lib/cn";
 
 export function Card({
@@ -87,6 +88,95 @@ export function Toggle({ checked, onChange, label, hint, disabled = false }: Tog
         />
       </button>
     </div>
+  );
+}
+
+interface ConfirmDialogProps {
+  open: boolean;
+  title: string;
+  description?: ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  /** `danger` paints the confirm button red for destructive actions. */
+  tone?: "brand" | "danger";
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * In-app modal used instead of `window.confirm`, so prompts follow the app's
+ * theme instead of the OS dialog. Rendered through a portal because ancestors
+ * with `backdrop-blur` would otherwise trap a fixed overlay.
+ */
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmText = "确定",
+  cancelText = "取消",
+  tone = "brand",
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    confirmRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="fd-fade fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-6 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fd-confirm-title"
+        className="fd-pop w-full max-w-sm rounded-2xl border border-line bg-solid p-5 shadow-2xl"
+      >
+        <p id="fd-confirm-title" className="text-sm font-semibold text-ink">
+          {title}
+        </p>
+        {description ? (
+          <p className="mt-2 text-xs leading-relaxed text-muted">{description}</p>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+          >
+            {cancelText}
+          </button>
+          <button
+            ref={confirmRef}
+            type="button"
+            onClick={onConfirm}
+            className={cn(
+              "rounded-xl px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90",
+              tone === "danger" ? "bg-rose-500" : "fd-primary",
+            )}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

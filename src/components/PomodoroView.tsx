@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BellOff, Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
@@ -10,6 +11,7 @@ import {
   minutesFor,
   minutesKeyFor,
   modeLabel,
+  roundInProgress,
   roundMinutes,
   timerProgress,
 } from "../lib/timer";
@@ -17,7 +19,7 @@ import { todayStat } from "../lib/stats";
 import { TIMER_PRESETS, activePresetId, presetHint } from "../lib/timerPresets";
 import type { TimerMode, TimerTiming } from "../types";
 import { Ring } from "./Ring";
-import { Card, Segmented, Stepper } from "./ui";
+import { Card, ConfirmDialog, Segmented, Stepper } from "./ui";
 import { cn } from "../lib/cn";
 
 type Phase = "focus" | "rest";
@@ -77,30 +79,27 @@ export default function PomodoroView() {
   const phase: Phase = timer.mode === "work" ? "focus" : "rest";
   const range = MINUTES_RANGE[timer.mode];
 
+  const [pendingMode, setPendingMode] = useState<TimerMode | null>(null);
+
   // Switching modes rebuilds the clock from scratch, so a round that is running
-  // or has already used time must be confirmed first — otherwise a stray tap on
-  //「休息」would silently wipe the focus progress.
-  const roundInProgress =
-    timer.running || (stopwatchFocus ? timer.remaining > 0 : timer.remaining < total);
-  const confirmDiscard = (): boolean =>
-    !roundInProgress ||
-    window.confirm(`当前${modeLabel(timer.mode)}还未结束，切换会重置本轮进度，确定继续吗？`);
+  // or has already used time must be confirmed first. The switch itself waits
+  // for the answer: nothing is applied while the dialog is open.
+  const needsConfirm = roundInProgress(timer);
+  const requestMode = (next: TimerMode) => {
+    if (next === timer.mode) return;
+    if (!needsConfirm) {
+      setMode(next);
+      return;
+    }
+    setPendingMode(next);
+  };
 
   const changePhase = (next: Phase) => {
     if (next === "focus") {
-      if (timer.mode === "work" || !confirmDiscard()) return;
-      setMode("work");
+      if (timer.mode !== "work") requestMode("work");
     } else if (timer.mode === "work") {
-      // Only the work -> break direction discards something here.
-      if (!confirmDiscard()) return;
-      setMode("short");
+      requestMode("short");
     }
-  };
-
-  /** Short ↔ long break also restarts the break clock. */
-  const changeBreakMode = (next: TimerMode) => {
-    if (next === timer.mode || !confirmDiscard()) return;
-    setMode(next);
   };
 
   // Compute the key explicitly so TypeScript keeps the Partial<Settings> shape.
@@ -128,7 +127,7 @@ export default function PomodoroView() {
           </div>
 
           {phase === "rest" ? (
-            <Segmented options={REST_PRESETS} value={timer.mode} onChange={changeBreakMode} />
+            <Segmented options={REST_PRESETS} value={timer.mode} onChange={requestMode} />
           ) : (
             <div className={cn(timer.running && "pointer-events-none opacity-45")}>
               <Segmented options={TIMINGS} value={timer.timing} onChange={setTiming} />
@@ -374,6 +373,19 @@ export default function PomodoroView() {
           </Card>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={pendingMode !== null}
+        title={`切换会重置本轮${modeLabel(timer.mode)}`}
+        description={`本轮已经开始计时，切换到「${pendingMode ? modeLabel(pendingMode) : ""}」后会重新开始，本轮进度不会保留。`}
+        confirmText="继续切换"
+        cancelText="留在本轮"
+        onConfirm={() => {
+          if (pendingMode) setMode(pendingMode);
+          setPendingMode(null);
+        }}
+        onCancel={() => setPendingMode(null)}
+      />
     </div>
   );
 }

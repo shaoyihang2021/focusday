@@ -37,6 +37,16 @@ export const MINUTES_RANGE: Record<TimerMode, { min: number; max: number }> = {
 export const roundMinutes = (timer: TimerState): number =>
   timer.timing === "stopwatch" ? 0 : Math.round(Math.max(0, timer.duration) / 60);
 
+/**
+ * Whether the current round already holds progress that switching mode would
+ * throw away: it is ticking, or some of its time has already been used.
+ */
+export const roundInProgress = (timer: TimerState): boolean => {
+  if (timer.running) return true;
+  if (timer.timing === "stopwatch" && timer.mode === "work") return timer.remaining > 0;
+  return timer.duration > 0 && timer.remaining < timer.duration;
+};
+
 /** Seconds left, derived from the wall clock so every window agrees. */
 export const computeRemaining = (timer: TimerState, now: number): number =>
   timer.running && timer.endAt

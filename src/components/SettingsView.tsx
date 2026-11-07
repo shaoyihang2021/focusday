@@ -20,7 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store/useAppStore";
 import { widgetScale } from "../store/defaults";
 import { TIMER_PRESETS, activePresetId, presetHint } from "../lib/timerPresets";
-import { Card, Segmented, Stepper, Toggle } from "./ui";
+import { Card, ConfirmDialog, Segmented, Stepper, Toggle } from "./ui";
 import ManualSection from "./ManualSection";
 import {
   applyWidgetWindowSettings,
@@ -114,6 +114,7 @@ export default function SettingsView() {
   const tauri = isTauri();
 
   const [status, setStatus] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<"import" | "reset" | null>(null);
 
   const applyWidgetPrefs = (next: { alwaysOnTop?: boolean; size?: WidgetSize }) => {
     void applyWidgetWindowSettings({
@@ -161,7 +162,7 @@ export default function SettingsView() {
   };
 
   const handleImport = async () => {
-    if (!window.confirm("导入备份会覆盖当前全部数据，确定继续吗？")) return;
+    setPendingConfirm(null);
     try {
       const next = await importBackup();
       if (!next) {
@@ -612,7 +613,7 @@ export default function SettingsView() {
           <button
             type="button"
             disabled={!tauri}
-            onClick={() => void handleImport()}
+            onClick={() => setPendingConfirm("import")}
             className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Upload size={14} /> 导入
@@ -621,9 +622,7 @@ export default function SettingsView() {
         <Row label="重置全部数据" hint="清空待办、倒数日与统计数据，操作不可撤销">
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm("确定要清空全部数据吗？此操作不可恢复。")) resetAll();
-            }}
+            onClick={() => setPendingConfirm("reset")}
             className="flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-semibold text-rose-500 transition-colors hover:bg-rose-500/20"
           >
             <RotateCcw size={14} /> 重置
@@ -644,7 +643,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.6</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.7</span>
         </Row>
       </Section>
 
@@ -657,8 +656,30 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.16.6 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.16.7 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
+
+      <ConfirmDialog
+        open={pendingConfirm === "import"}
+        title="导入备份会覆盖当前全部数据"
+        description="现有待办、倒数日、设置与统计都会被备份文件替换，此操作不可撤销。"
+        confirmText="选择文件"
+        tone="danger"
+        onConfirm={() => void handleImport()}
+        onCancel={() => setPendingConfirm(null)}
+      />
+      <ConfirmDialog
+        open={pendingConfirm === "reset"}
+        title="确定要清空全部数据吗？"
+        description="待办、倒数日、设置与专注统计都会被清除，此操作不可恢复。"
+        confirmText="清空全部数据"
+        tone="danger"
+        onConfirm={() => {
+          setPendingConfirm(null);
+          resetAll();
+        }}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   );
 }

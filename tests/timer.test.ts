@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { displaySeconds, elapsedSeconds, roundMinutes, timerProgress } from "../src/lib/timer.ts";
+import {
+  displaySeconds,
+  elapsedSeconds,
+  roundInProgress,
+  roundMinutes,
+  timerProgress,
+} from "../src/lib/timer.ts";
 
 const settings = { workMin: 25, shortMin: 5, longMin: 15 } as never;
 const base = {
@@ -61,4 +67,20 @@ test("完成的回合按自身时长折算分钟，而不是当前设置", () =>
   assert.equal(roundMinutes(base), 25);
   assert.equal(roundMinutes({ ...base, duration: 90 }), 2);
   assert.equal(roundMinutes({ ...base, duration: 0 }), 0);
+});
+
+test("未开始的回合切换阶段不需确认", () => {
+  assert.equal(roundInProgress(base), false);
+  assert.equal(roundInProgress({ ...base, duration: 0 }), false);
+});
+
+test("运行中或已用掉时间的回合计为进行中", () => {
+  assert.equal(roundInProgress({ ...base, running: true }), true);
+  assert.equal(roundInProgress({ ...base, remaining: 1200 }), true);
+});
+
+test("正计时以是否累计过时间为准", () => {
+  const stopwatch = { ...base, timing: "stopwatch" as const, duration: 0, remaining: 0 };
+  assert.equal(roundInProgress(stopwatch), false);
+  assert.equal(roundInProgress({ ...stopwatch, remaining: 12.5 }), true);
 });

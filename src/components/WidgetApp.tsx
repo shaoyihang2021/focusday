@@ -205,20 +205,27 @@ export default function WidgetApp() {
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
+            {/* Wraps as whole groups, so a narrow widget moves the day counter
+                to its own line instead of breaking Chinese words apart. */}
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
               {isBreak ? (
-                <Coffee size={13} className="text-[#1fa2a6]" />
+                <Coffee size={13} className="shrink-0 text-[#1fa2a6]" />
               ) : (
-                <Timer size={13} className="text-brand" />
+                <Timer size={13} className="shrink-0 text-brand" />
               )}
-              <span className="text-xs font-semibold text-ink">
+              <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-ink">
                 {modeText}
               </span>
-              <span className={cn("text-[10px]", timer.running ? "fd-pulse text-brand" : "text-muted")}>
+              <span
+                className={cn(
+                  "shrink-0 whitespace-nowrap text-[10px]",
+                  timer.running ? "fd-pulse text-brand" : "text-muted",
+                )}
+              >
                 {timer.running ? "进行中" : "已暂停"}
               </span>
               {settings.widgetShow.today ? (
-                <span className="ml-auto text-[10px] text-muted">
+                <span className="ml-auto shrink-0 whitespace-nowrap text-[10px] text-muted">
                   {settings.dailyGoalMin > 0
                     ? `今日 ${today.minutes}/${settings.dailyGoalMin} 分`
                     : `今日 ${today.count}🍅`}
@@ -227,7 +234,7 @@ export default function WidgetApp() {
             </div>
 
             {settings.widgetShow.countdown && nearestInfo && nearest ? (
-              <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1.5 dark:bg-white/[0.06]">
+              <div className="mt-1 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1 dark:bg-white/[0.06]">
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: nearest.color }} />
                 <span className="min-w-0 flex-1 truncate text-[11px] text-ink">{nearest.title}</span>
                 <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted">
@@ -241,7 +248,7 @@ export default function WidgetApp() {
             ) : null}
 
             {settings.widgetShow.todo ? (
-              <p className="mt-1.5 truncate text-[11px] text-muted">
+              <p className="mt-0.5 truncate text-[11px] text-muted">
                 {nextTodo ? `待办 · ${nextTodo.title}` : "暂无待办"}
               </p>
             ) : null}

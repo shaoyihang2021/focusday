@@ -41,7 +41,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Cache Rust artifacts
         uses: swatinem/rust-cache@v2
@@ -55,9 +55,10 @@ jobs:
         run: npx tauri android init --ci
 
       # Debug builds are signed with the local debug key, so the APK installs
-      # without shipping a release keystore in the repository.
+      # without shipping a release keystore in the repository. Only arm64 is
+      # built: a universal APK with four ABIs would be hundreds of megabytes.
       - name: Build APK
-        run: npx tauri android build --debug --apk --ci
+        run: npx tauri android build --debug --apk --target aarch64 --ci
 
       - name: Collect APK
         run: |

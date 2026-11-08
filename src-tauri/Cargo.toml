@@ -1,6 +1,6 @@
 [package]
 name = "focusday"
-version = "0.17.3"
+version = "0.17.4"
 description = "FocusDay · 番茄工作法 + 待办清单 + 倒数日"
 authors = ["shaoyihang2021"]
 edition = "2021"
@@ -33,6 +33,10 @@ base64 = "0.22"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
+
+[profile.dev]
+# Keeps Android debug APKs small enough to download and install.
+strip = "symbols"
 
 [profile.release]
 codegen-units = 1

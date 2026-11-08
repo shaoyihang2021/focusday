@@ -48,12 +48,14 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
+    // Phones stack the label above the control; a side-by-side row would
+    // squeeze Chinese labels into a one-character-wide column.
+    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink">{label}</p>
         {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
       </div>
-      {children}
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">{children}</div>
     </div>
   );
 }
@@ -659,7 +661,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.5</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.6</span>
         </Row>
       </Section>
 
@@ -672,7 +674,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.17.5 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.6 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog

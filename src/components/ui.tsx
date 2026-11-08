@@ -194,7 +194,12 @@ export function Segmented<T extends string>({
   className,
 }: SegmentedProps<T>) {
   return (
-    <div className={cn("inline-flex gap-1 rounded-xl border border-line bg-card p-1", className)}>
+    <div
+      className={cn(
+        "inline-flex flex-wrap gap-1 rounded-xl border border-line bg-card p-1",
+        className,
+      )}
+    >
       {options.map((option) => (
         <button
           key={option.value}

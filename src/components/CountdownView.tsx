@@ -148,7 +148,7 @@ function CalendarField({
     "h-10 rounded-xl border border-line bg-solid px-2 text-sm text-ink outline-none focus:border-brand";
 
   return (
-    <div className="w-full min-w-0 sm:min-w-[356px]">
+    <div className="min-w-[356px] max-sm:w-full max-sm:min-w-0">
       <p className="mb-1.5 text-xs font-medium text-muted">目标日期</p>
       <div className="flex flex-wrap items-center gap-2">
         <Segmented
@@ -243,7 +243,7 @@ interface StyleFieldProps {
 /** Card look picker; the poster style also takes an optional English subtitle. */
 function StyleField({ style, subtitleEn, onStyle, onSubtitleEn, onEnter }: StyleFieldProps) {
   return (
-    <div className="w-full min-w-0 sm:min-w-[260px]">
+    <div className="min-w-[260px] max-sm:w-full max-sm:min-w-0">
       <p className="mb-1.5 text-sm font-medium text-ink">卡片风格</p>
       <div className="flex flex-wrap items-center gap-3">
         <Segmented options={STYLES} value={style} onChange={onStyle} />

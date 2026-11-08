@@ -101,6 +101,7 @@ fn notify_widget_visible<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Brings the main window back to the front.
+#[cfg(desktop_os)]
 fn show_main<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(MAIN_LABEL) {
         let _ = window.show();
@@ -217,7 +218,14 @@ async fn set_widget_size(app: AppHandle, scale: f64) -> Result<(), String> {
 /// Brings the main window back to the front (used from the widget).
 #[tauri::command]
 async fn focus_main_window(app: AppHandle) -> Result<(), String> {
-    show_main(&app);
+    #[cfg(desktop_os)]
+    {
+        show_main(&app);
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = app;
+    }
     Ok(())
 }
 
@@ -679,6 +687,7 @@ fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_notification::init())

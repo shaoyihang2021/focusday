@@ -1,39 +1,54 @@
 // Prevents an additional console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use tauri::{AppHandle, Manager, Runtime};
+#[cfg(desktop_os)]
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, LogicalSize, Manager, Runtime, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent,
+    Emitter, LogicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
+#[cfg(desktop_os)]
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+#[cfg(desktop_os)]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-/// Label of the detached, always-on-top desktop widget window.
-const WIDGET_LABEL: &str = "widget";
 const MAIN_LABEL: &str = "main";
+
+/// Label of the detached, always-on-top desktop widget window.
+#[cfg(desktop_os)]
+const WIDGET_LABEL: &str = "widget";
+#[cfg(desktop_os)]
 const WIDGET_ROUTE: &str = "index.html#/widget";
+#[cfg(desktop_os)]
 const TRAY_ID: &str = "focusday-tray";
 /// Pushed to the main window whenever the widget appears or disappears, so the
 /// header button, the settings switch and the tray menu never disagree.
+#[cfg(desktop_os)]
 const WIDGET_VISIBLE_EVENT: &str = "fd://widget-visible";
 
 /// Base (100%) size of the widget window, in logical pixels.
+#[cfg(desktop_os)]
 const WIDGET_BASE_W: f64 = 324.0;
+#[cfg(desktop_os)]
 const WIDGET_BASE_H: f64 = 216.0;
 
 /// Label prefix of the per-countdown desktop widget windows.
+#[cfg(desktop_os)]
 const COUNTDOWN_PREFIX: &str = "cd-";
+#[cfg(desktop_os)]
 const COUNTDOWN_BASE_W: f64 = 360.0;
+#[cfg(desktop_os)]
 const COUNTDOWN_BASE_H: f64 = 214.0;
 
 /// Serialises countdown window syncing so concurrent pin toggles cannot
 /// interleave their "destroy then create" steps.
+#[cfg(desktop_os)]
 static COUNTDOWN_SYNC_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Builds a valid Tauri window label from a countdown id.
 /// Tauri labels may only contain alphanumerics, `-`, `/`, `:`, `_` and `.`.
+#[cfg(desktop_os)]
 fn countdown_label(id: &str) -> String {
     let safe: String = id
         .chars()
@@ -43,10 +58,12 @@ fn countdown_label(id: &str) -> String {
 }
 
 /// Cascades freshly opened countdown widgets so they do not cover each other.
+#[cfg(desktop_os)]
 fn cascade_position(index: usize) -> (f64, f64) {
     (80.0 + index as f64 * 28.0, 120.0 + index as f64 * 28.0)
 }
 
+#[cfg(desktop_os)]
 fn create_widget<R: Runtime>(app: &AppHandle<R>, visible: bool) -> Result<WebviewWindow<R>, String> {
     let window = WebviewWindowBuilder::new(app, WIDGET_LABEL, WebviewUrl::App(WIDGET_ROUTE.into()))
         .title("FocusDay 小组件")
@@ -74,6 +91,7 @@ fn create_widget<R: Runtime>(app: &AppHandle<R>, visible: bool) -> Result<Webvie
 }
 
 /// Tells the main window whether the widget window is currently on screen.
+#[cfg(desktop_os)]
 fn notify_widget_visible<R: Runtime>(app: &AppHandle<R>) {
     let visible = app
         .get_webview_window(WIDGET_LABEL)
@@ -91,6 +109,7 @@ fn show_main<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+#[cfg(desktop_os)]
 fn show_widget<R: Runtime>(app: &AppHandle<R>) {
     match app.get_webview_window(WIDGET_LABEL) {
         Some(window) => {
@@ -103,6 +122,7 @@ fn show_widget<R: Runtime>(app: &AppHandle<R>) {
     notify_widget_visible(app);
 }
 
+#[cfg(desktop_os)]
 fn hide_widget<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
         let _ = window.hide();
@@ -111,6 +131,7 @@ fn hide_widget<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Shows the main window when it is hidden, hides it when it is visible.
+#[cfg(desktop_os)]
 fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
     let Some(window) = app.get_webview_window(MAIN_LABEL) else {
         return;
@@ -127,10 +148,17 @@ fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
 /// Shows or hides the desktop widget, creating it on demand the first time.
 #[tauri::command]
 async fn toggle_widget(app: AppHandle, visible: bool) -> Result<(), String> {
-    if visible {
-        show_widget(&app);
-    } else {
-        hide_widget(&app);
+    #[cfg(desktop_os)]
+    {
+        if visible {
+            show_widget(&app);
+        } else {
+            hide_widget(&app);
+        }
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, visible);
     }
     Ok(())
 }
@@ -138,16 +166,31 @@ async fn toggle_widget(app: AppHandle, visible: bool) -> Result<(), String> {
 /// Reports whether the widget window is currently visible.
 #[tauri::command]
 fn widget_is_visible(app: AppHandle) -> bool {
-    app.get_webview_window(WIDGET_LABEL)
-        .and_then(|window| window.is_visible().ok())
-        .unwrap_or(false)
+    #[cfg(desktop_os)]
+    {
+        app.get_webview_window(WIDGET_LABEL)
+            .and_then(|window| window.is_visible().ok())
+            .unwrap_or(false)
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = app;
+        false
+    }
 }
 
 /// Keeps the widget window's always-on-top flag in sync with user settings.
 #[tauri::command]
 async fn set_widget_always_on_top(app: AppHandle, value: bool) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
-        window.set_always_on_top(value).map_err(|e| e.to_string())?;
+    #[cfg(desktop_os)]
+    {
+        if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
+            window.set_always_on_top(value).map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, value);
     }
     Ok(())
 }
@@ -155,11 +198,18 @@ async fn set_widget_always_on_top(app: AppHandle, value: bool) -> Result<(), Str
 /// Resizes the widget window. `scale` is a multiplier of the base size.
 #[tauri::command]
 async fn set_widget_size(app: AppHandle, scale: f64) -> Result<(), String> {
-    let clamped = scale.clamp(0.7, 1.6);
-    if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
-        window
-            .set_size(LogicalSize::new(WIDGET_BASE_W * clamped, WIDGET_BASE_H * clamped))
-            .map_err(|e| e.to_string())?;
+    #[cfg(desktop_os)]
+    {
+        let clamped = scale.clamp(0.7, 1.6);
+        if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
+            window
+                .set_size(LogicalSize::new(WIDGET_BASE_W * clamped, WIDGET_BASE_H * clamped))
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, scale);
     }
     Ok(())
 }
@@ -175,76 +225,100 @@ async fn focus_main_window(app: AppHandle) -> Result<(), String> {
 /// rest. Idempotent: the main window calls it whenever the pinned set changes.
 #[tauri::command]
 async fn sync_countdown_widgets(app: AppHandle, ids: Vec<String>) -> Result<(), String> {
-    use std::collections::HashSet;
-
-    // Recover from a poisoned lock instead of permanently disabling sync.
-    let _guard = COUNTDOWN_SYNC_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-
-    let wanted: HashSet<String> = ids.iter().map(|id| countdown_label(id)).collect();
-
-    let existing: Vec<(String, WebviewWindow)> = app
-        .webview_windows()
-        .into_iter()
-        .filter(|(label, _)| label.starts_with(COUNTDOWN_PREFIX))
-        .collect();
-
-    // `destroy` bypasses close-request handlers, so a pin toggle can never be
-    // fought over by the widget window itself.
-    for (label, window) in &existing {
-        if !wanted.contains(label) {
-            let _ = window.destroy();
-        }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, ids);
+        return Ok(());
     }
 
-    let mut index = existing.iter().filter(|(label, _)| wanted.contains(label)).count();
-    for id in ids {
-        let label = countdown_label(&id);
-        if app.get_webview_window(&label).is_some() {
-            continue;
+    #[cfg(desktop_os)]
+    {
+        use std::collections::HashSet;
+
+        // Recover from a poisoned lock instead of permanently disabling sync.
+        let _guard = COUNTDOWN_SYNC_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+        let wanted: HashSet<String> = ids.iter().map(|id| countdown_label(id)).collect();
+
+        let existing: Vec<(String, WebviewWindow)> = app
+            .webview_windows()
+            .into_iter()
+            .filter(|(label, _)| label.starts_with(COUNTDOWN_PREFIX))
+            .collect();
+
+        // `destroy` bypasses close-request handlers, so a pin toggle can never be
+        // fought over by the widget window itself.
+        for (label, window) in &existing {
+            if !wanted.contains(label) {
+                let _ = window.destroy();
+            }
         }
 
-        let (x, y) = cascade_position(index);
-        index += 1;
-        let route = format!("index.html#/cd/{id}");
-        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(route.into()))
-            .title("FocusDay · 倒数日")
-            .inner_size(COUNTDOWN_BASE_W, COUNTDOWN_BASE_H)
-            .position(x, y)
-            .resizable(false)
-            .decorations(false)
-            .transparent(true)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .shadow(false)
-            .visible(true)
-            .build()
-            .map_err(|e| e.to_string())?;
-    }
+        let mut index = existing.iter().filter(|(label, _)| wanted.contains(label)).count();
+        for id in ids {
+            let label = countdown_label(&id);
+            if app.get_webview_window(&label).is_some() {
+                continue;
+            }
 
-    Ok(())
+            let (x, y) = cascade_position(index);
+            index += 1;
+            let route = format!("index.html#/cd/{id}");
+            WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(route.into()))
+                .title("FocusDay · 倒数日")
+                .inner_size(COUNTDOWN_BASE_W, COUNTDOWN_BASE_H)
+                .position(x, y)
+                .resizable(false)
+                .decorations(false)
+                .transparent(true)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .shadow(false)
+                .visible(true)
+                .build()
+                .map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Registers / removes FocusDay from the OS auto-start list.
 /// Returns the state the OS actually reports afterwards.
 #[tauri::command]
 fn set_auto_launch(app: AppHandle, value: bool) -> Result<bool, String> {
-    let autolaunch = app.autolaunch();
-    let outcome = if value {
-        autolaunch.enable()
-    } else {
-        autolaunch.disable()
-    };
-    outcome.map_err(|e| e.to_string())?;
-    autolaunch.is_enabled().map_err(|e| e.to_string())
+    #[cfg(desktop_os)]
+    {
+        let autolaunch = app.autolaunch();
+        let outcome = if value {
+            autolaunch.enable()
+        } else {
+            autolaunch.disable()
+        };
+        outcome.map_err(|e| e.to_string())?;
+        return autolaunch.is_enabled().map_err(|e| e.to_string());
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, value);
+        Ok(false)
+    }
 }
 
 /// Updates the tray icon's hover tooltip, e.g. the live countdown.
 #[tauri::command]
 fn update_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())?;
+    #[cfg(desktop_os)]
+    {
+        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+            tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, text);
     }
     Ok(())
 }
@@ -399,24 +473,31 @@ fn set_tray_progress(
     fraction: f64,
     color: String,
 ) -> Result<(), String> {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return Ok(());
-    };
+    #[cfg(desktop_os)]
+    {
+        let Some(tray) = app.tray_by_id(TRAY_ID) else {
+            return Ok(());
+        };
 
-    let icon = match minutes {
-        Some(remaining) => {
-            let rgba = render_tray_icon(remaining, fraction, &color);
-            Some(tauri::image::Image::new_owned(
-                rgba,
-                ICON_SIZE as u32,
-                ICON_SIZE as u32,
-            ))
+        let icon = match minutes {
+            Some(remaining) => {
+                let rgba = render_tray_icon(remaining, fraction, &color);
+                Some(tauri::image::Image::new_owned(
+                    rgba,
+                    ICON_SIZE as u32,
+                    ICON_SIZE as u32,
+                ))
+            }
+            None => app.default_window_icon().cloned(),
+        };
+
+        if let Some(icon) = icon {
+            tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
         }
-        None => app.default_window_icon().cloned(),
-    };
-
-    if let Some(icon) = icon {
-        tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, minutes, fraction, color);
     }
     Ok(())
 }
@@ -426,22 +507,30 @@ fn set_tray_progress(
 /// Returns whether a shortcut is active afterwards.
 #[tauri::command]
 fn set_global_shortcut(app: AppHandle, accelerator: Option<String>) -> Result<bool, String> {
-    let shortcuts = app.global_shortcut();
-    shortcuts.unregister_all().map_err(|e| e.to_string())?;
+    #[cfg(desktop_os)]
+    {
+        let shortcuts = app.global_shortcut();
+        shortcuts.unregister_all().map_err(|e| e.to_string())?;
 
-    let Some(accelerator) = accelerator.filter(|acc| !acc.trim().is_empty()) else {
-        return Ok(false);
-    };
+        let Some(accelerator) = accelerator.filter(|acc| !acc.trim().is_empty()) else {
+            return Ok(false);
+        };
 
-    shortcuts
-        .on_shortcut(accelerator.as_str(), move |app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                toggle_main(app);
-            }
-        })
-        .map_err(|e| e.to_string())?;
+        shortcuts
+            .on_shortcut(accelerator.as_str(), move |app, _shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    toggle_main(app);
+                }
+            })
+            .map_err(|e| e.to_string())?;
 
-    Ok(true)
+        Ok(true)
+    }
+    #[cfg(not(desktop_os))]
+    {
+        let _ = (app, accelerator);
+        Ok(false)
+    }
 }
 
 /// Writes an exported backup to a user-chosen path.
@@ -531,38 +620,13 @@ fn open_system_focus_settings() -> Result<(), String> {
     }
 }
 
-/// Opens the GitHub Releases page in the user's default browser.
-#[tauri::command]
-fn open_release_page() -> Result<(), String> {
-    const URL: &str = "https://github.com/shaoyihang2021/focusday/releases";
-
-    #[cfg(target_os = "windows")]
-    {
-        open_with_default_handler(URL)?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(URL)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(URL)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
 /// Fully exits the app, closing tray and widget windows as well.
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+#[cfg(desktop_os)]
 fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let show_main_item = MenuItem::with_id(app, "show_main", "显示主窗口", true, None::<&str>)?;
     let show_widget_item =
@@ -615,15 +679,23 @@ fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            None,
-        ))
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(desktop_os)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_autostart::init(
+                MacosLauncher::LaunchAgent,
+                None,
+            ))
+            .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             toggle_widget,
             widget_is_visible,
@@ -640,14 +712,20 @@ pub fn run() {
             read_image_data_url,
             write_png,
             open_system_focus_settings,
-            open_release_page,
             quit_app
         ])
         .setup(|app| {
-            let handle = app.handle().clone();
-            // Pre-create the widget hidden so toggling it feels instant.
-            let _ = create_widget(&handle, false);
-            setup_tray(&handle)?;
+            #[cfg(desktop_os)]
+            {
+                let handle = app.handle().clone();
+                // Pre-create the widget hidden so toggling it feels instant.
+                let _ = create_widget(&handle, false);
+                setup_tray(&handle)?;
+            }
+            #[cfg(not(desktop_os))]
+            {
+                let _ = &app;
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

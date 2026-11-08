@@ -1,6 +1,6 @@
 [package]
 name = "focusday"
-version = "0.16.8"
+version = "0.17.0"
 description = "FocusDay · 番茄工作法 + 待办清单 + 倒数日"
 authors = ["shaoyihang2021"]
 edition = "2021"
@@ -15,16 +15,24 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(desktop_os)"] }
+
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = [] }
 tauri-plugin-store = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-autostart = "2"
-tauri-plugin-global-shortcut = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
+
+# Desktop-only capabilities: phone builds have no tray, autostart or shortcuts.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
 
 [profile.release]
 codegen-units = 1

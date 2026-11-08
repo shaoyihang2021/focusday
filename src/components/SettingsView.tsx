@@ -30,7 +30,7 @@ import {
 import { exportBackup, importBackup } from "../lib/backup";
 import { pickWidgetBackground } from "../lib/widgetBackground";
 import { openReleasePage } from "../lib/links";
-import { isTauri } from "../lib/env";
+import { isDesktopRuntime, isMobileOS, isTauri } from "../lib/env";
 import { formatDate, todayISO } from "../lib/date";
 import type { Accent, NoiseType, ThemeMode, WidgetSize, WidgetSkin } from "../types";
 
@@ -112,6 +112,8 @@ export default function SettingsView() {
   const widgetVisible = useAppStore((s) => s.widgetVisible);
   const setWidgetVisible = useAppStore((s) => s.setWidgetVisible);
   const tauri = isTauri();
+  const desktop = isDesktopRuntime();
+  const mobile = isMobileOS();
 
   const [status, setStatus] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<"import" | "reset" | null>(null);
@@ -299,24 +301,28 @@ export default function SettingsView() {
           label="专注时免打扰"
           hint="专注进行中静默 FocusDay 自身的提示音与系统通知，主界面会显示「免打扰中」"
         />
-        <Row
-          label="系统专注助手（勿扰）"
-          hint="Windows 未向第三方程序开放切换系统级免打扰的接口，因此这里只提供设置入口，需由你手动开启"
-        >
-          <button
-            type="button"
-            onClick={() => void handleOpenFocusSettings()}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-card px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+        {desktop ? (
+          <Row
+            label="系统专注助手（勿扰）"
+            hint="Windows 未向第三方程序开放切换系统级免打扰的接口，因此这里只提供设置入口，需由你手动开启"
           >
-            <ExternalLink size={14} /> 打开系统设置
-          </button>
-        </Row>
-        <Toggle
-          checked={settings.trayCountdown}
-          onChange={(v) => updateSettings({ trayCountdown: v })}
-          label="托盘显示倒计时"
-          hint="鼠标悬停托盘图标即可看到剩余时间与今日番茄数"
-        />
+            <button
+              type="button"
+              onClick={() => void handleOpenFocusSettings()}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-card px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+            >
+              <ExternalLink size={14} /> 打开系统设置
+            </button>
+          </Row>
+        ) : null}
+        {desktop ? (
+          <Toggle
+            checked={settings.trayCountdown}
+            onChange={(v) => updateSettings({ trayCountdown: v })}
+            label="托盘显示倒计时"
+            hint="鼠标悬停托盘图标即可看到剩余时间与今日番茄数"
+          />
+        ) : null}
       </Section>
 
       <Section icon={<Waves size={16} />} title="白噪音">
@@ -338,7 +344,7 @@ export default function SettingsView() {
             step={5}
             value={Math.round(settings.noiseVolume * 100)}
             onChange={(e) => updateSettings({ noiseVolume: Number(e.target.value) / 100 })}
-            className="w-40"
+            className="w-28 sm:w-40"
           />
         </Row>
         <Row label="音色亮度" hint={settings.noiseTone < 0.3 ? "低沉、闷" : settings.noiseTone > 0.8 ? "明亮、通透" : "均衡"}>
@@ -349,7 +355,7 @@ export default function SettingsView() {
             step={2}
             value={Math.round(settings.noiseTone * 100)}
             onChange={(e) => updateSettings({ noiseTone: Number(e.target.value) / 100 })}
-            className="w-40"
+            className="w-28 sm:w-40"
           />
         </Row>
         <Row label="低频厚度" hint={`低架增益 ${settings.noiseBass > 0 ? "+" : ""}${settings.noiseBass} dB`}>
@@ -360,12 +366,13 @@ export default function SettingsView() {
             step={1}
             value={settings.noiseBass}
             onChange={(e) => updateSettings({ noiseBass: Number(e.target.value) })}
-            className="w-40"
+            className="w-28 sm:w-40"
           />
         </Row>
       </Section>
 
-      <Section icon={<Keyboard size={16} />} title="全局快捷键">
+      {desktop ? (
+        <Section icon={<Keyboard size={16} />} title="全局快捷键">
         <Row
           label="唤起主窗口"
           hint={tauri ? "在任意程序中显示 / 隐藏主窗口" : "仅在桌面客户端中可用"}
@@ -384,8 +391,10 @@ export default function SettingsView() {
           </select>
         </Row>
       </Section>
+      ) : null}
 
-      <Section icon={<Rocket size={16} />} title="启动与后台">
+      {desktop ? (
+        <Section icon={<Rocket size={16} />} title="启动与后台">
         <Toggle
           checked={settings.autoLaunch}
           onChange={(v) => {
@@ -409,6 +418,7 @@ export default function SettingsView() {
           hint="关闭主窗口后应用继续在系统托盘运行，可从托盘菜单退出"
         />
       </Section>
+      ) : null}
 
       <Section icon={<Palette size={16} />} title="外观">
         <Row label="主题" hint="浅色 / 深色 / 跟随系统">
@@ -442,7 +452,8 @@ export default function SettingsView() {
         </Row>
       </Section>
 
-      <Section icon={<Eye size={16} />} title="桌面小组件">
+      {desktop ? (
+        <Section icon={<Eye size={16} />} title="桌面小组件">
         <Toggle
           checked={widgetVisible}
           onChange={setWidgetVisible}
@@ -541,7 +552,7 @@ export default function SettingsView() {
                 step={2}
                 value={Math.round(settings.widgetBackgroundDim * 100)}
                 onChange={(e) => updateSettings({ widgetBackgroundDim: Number(e.target.value) / 100 })}
-                className="w-40"
+                className="w-28 sm:w-40"
               />
             </div>
           ) : null}
@@ -593,32 +604,37 @@ export default function SettingsView() {
             step={2}
             value={Math.round(settings.widgetOpacity * 100)}
             onChange={(e) => updateSettings({ widgetOpacity: Number(e.target.value) / 100 })}
-            className="w-40"
+            className="w-28 sm:w-40"
           />
         </Row>
       </Section>
+      ) : null}
 
       <Section icon={<Database size={16} />} title="数据">
-        <Row label="导出备份" hint="把所有数据保存为 JSON 文件">
-          <button
-            type="button"
-            disabled={!tauri}
-            onClick={() => void handleExport()}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Download size={14} /> 导出
-          </button>
-        </Row>
-        <Row label="导入备份" hint="从 JSON 文件恢复数据，会覆盖当前数据">
-          <button
-            type="button"
-            disabled={!tauri}
-            onClick={() => setPendingConfirm("import")}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Upload size={14} /> 导入
-          </button>
-        </Row>
+        {mobile ? null : (
+          <>
+            <Row label="导出备份" hint="把所有数据保存为 JSON 文件">
+              <button
+                type="button"
+                disabled={!tauri}
+                onClick={() => void handleExport()}
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Download size={14} /> 导出
+              </button>
+            </Row>
+            <Row label="导入备份" hint="从 JSON 文件恢复数据，会覆盖当前数据">
+              <button
+                type="button"
+                disabled={!tauri}
+                onClick={() => setPendingConfirm("import")}
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Upload size={14} /> 导入
+              </button>
+            </Row>
+          </>
+        )}
         <Row label="重置全部数据" hint="清空待办、倒数日与统计数据，操作不可撤销">
           <button
             type="button"
@@ -643,7 +659,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.16.8</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.0</span>
         </Row>
       </Section>
 
@@ -656,7 +672,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.16.8 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog

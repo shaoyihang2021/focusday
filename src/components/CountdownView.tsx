@@ -20,6 +20,7 @@ import {
   repeatText,
 } from "../lib/countdown";
 import { Card, EmptyState, Segmented } from "./ui";
+import { isDesktopRuntime } from "../lib/env";
 import { cn } from "../lib/cn";
 import type {
   Countdown,
@@ -147,7 +148,7 @@ function CalendarField({
     "h-10 rounded-xl border border-line bg-solid px-2 text-sm text-ink outline-none focus:border-brand";
 
   return (
-    <div className="min-w-[356px]">
+    <div className="w-full min-w-0 sm:min-w-[356px]">
       <p className="mb-1.5 text-xs font-medium text-muted">目标日期</p>
       <div className="flex flex-wrap items-center gap-2">
         <Segmented
@@ -242,7 +243,7 @@ interface StyleFieldProps {
 /** Card look picker; the poster style also takes an optional English subtitle. */
 function StyleField({ style, subtitleEn, onStyle, onSubtitleEn, onEnter }: StyleFieldProps) {
   return (
-    <div className="min-w-[260px]">
+    <div className="w-full min-w-0 sm:min-w-[260px]">
       <p className="mb-1.5 text-sm font-medium text-ink">卡片风格</p>
       <div className="flex flex-wrap items-center gap-3">
         <Segmented options={STYLES} value={style} onChange={onStyle} />
@@ -271,6 +272,8 @@ function CardActions({ item, onEdit }: CardActionsProps) {
   const togglePinned = useAppStore((s) => s.togglePinned);
   const removeCountdown = useAppStore((s) => s.removeCountdown);
   const poster = item.style === "wandering";
+  // Pinning opens a desktop window, which Android has no equivalent for.
+  const desktop = isDesktopRuntime();
 
   const base = "grid h-7 w-7 place-items-center rounded-lg transition-colors";
   const subtle = poster
@@ -288,7 +291,7 @@ function CardActions({ item, onEdit }: CardActionsProps) {
         onClick={() => togglePinned(item.id)}
         title={item.pinned ? "取消钉在桌面" : "钉在桌面"}
         aria-pressed={item.pinned}
-        className={cn(base, item.pinned ? pinnedOn : subtle)}
+        className={cn(base, item.pinned ? pinnedOn : subtle, !desktop && "hidden")}
       >
         <Pin size={14} />
       </button>
@@ -669,7 +672,9 @@ export default function CountdownView() {
       </Card>
 
       <p className="text-[11px] text-muted">
-        点卡片右上角的图钉，会在桌面为这条倒数日单独生成一个小部件；再点一次即可收回。
+        {isDesktopRuntime()
+          ? "点卡片右上角的图钉，会在桌面为这条倒数日单独生成一个小部件；再点一次即可收回。"
+          : "倒数日会每天自动计算剩余天数，支持阳历 / 阴历与多种重复方式。"}
       </p>
 
       {items.length === 0 ? (

@@ -10,11 +10,12 @@ import { watchSystemTheme } from "./lib/theme";
 import { applyWidgetWindowSettings, registerCloseBehaviour, setAutoLaunch, setGlobalShortcut } from "./lib/widget";
 import { startTraySync } from "./lib/trayTooltip";
 import { syncNoise } from "./lib/noise";
-import { countdownWidgetId, isWidgetWindow } from "./lib/env";
+import { countdownWidgetId, isDesktopRuntime, isWidgetWindow } from "./lib/env";
 import "./index.css";
 
 const widget = isWidgetWindow();
 const countdownId = countdownWidgetId();
+const desktop = isDesktopRuntime();
 
 async function bootstrap(): Promise<void> {
   await initStore();
@@ -26,16 +27,19 @@ async function bootstrap(): Promise<void> {
     startEngine();
     void ensureNotificationPermission();
 
-    // Push the persisted window / system preferences down to the OS.
-    const { settings } = useAppStore.getState();
-    void applyWidgetWindowSettings({
-      alwaysOnTop: settings.widgetAlwaysOnTop,
-      scale: widgetScale[settings.widgetSize],
-    });
-    void setAutoLaunch(settings.autoLaunch);
-    void registerCloseBehaviour(() => useAppStore.getState().settings.closeToTray);
-    void setGlobalShortcut(settings.hotkey);
-    startTraySync();
+    if (desktop) {
+      // Push the persisted window / system preferences down to the OS. Phones
+      // and tablets have no tray, autostart or extra windows.
+      const { settings } = useAppStore.getState();
+      void applyWidgetWindowSettings({
+        alwaysOnTop: settings.widgetAlwaysOnTop,
+        scale: widgetScale[settings.widgetSize],
+      });
+      void setAutoLaunch(settings.autoLaunch);
+      void registerCloseBehaviour(() => useAppStore.getState().settings.closeToTray);
+      void setGlobalShortcut(settings.hotkey);
+      startTraySync();
+    }
 
     // Ambient noise follows the timer. Driving it from a store subscription
     // means a start triggered in the widget window also starts the audio here.

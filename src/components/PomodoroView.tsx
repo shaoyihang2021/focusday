@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BellOff, Check, ListTodo, Pause, Play, RotateCcw, SkipForward, Target } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import { useNow } from "../hooks/useNow";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import {
   MINUTES_RANGE,
   displaySeconds,
@@ -56,6 +57,9 @@ export default function PomodoroView() {
   const today = useAppStore((s) => todayStat(s.focusByDay));
 
   const now = useNow(250);
+  // Phones get a smaller dial so the card never overflows a 360px screen.
+  const narrow = useMediaQuery("(max-width: 639px)");
+  const ringSize = narrow ? 232 : 268;
   const clock = displaySeconds(timer, now);
   const total = durationFor(timer.mode, settings);
   const progress = timerProgress(timer, settings, now);
@@ -111,8 +115,8 @@ export default function PomodoroView() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_336px]">
-      <Card className="fd-pop flex flex-col items-center gap-7 px-8 py-9">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_336px]">
+      <Card className="fd-pop flex flex-col items-center gap-7 px-5 py-7 sm:px-8 sm:py-9">
         <div className="flex flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Segmented options={PHASES} value={phase} onChange={changePhase} />
@@ -188,12 +192,15 @@ export default function PomodoroView() {
         </div>
 
         {stopwatchFocus ? (
-          <div className="grid h-[268px] w-[268px] place-items-center rounded-full border border-line bg-card">
+          <div
+            className="grid place-items-center rounded-full border border-line bg-card"
+            style={{ width: ringSize, height: ringSize }}
+          >
             <div className="flex flex-col items-center">
               <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
                 正计时
               </span>
-              <span className="mt-1 text-[58px] leading-none font-bold tabular-nums tracking-tight text-ink">
+              <span className="mt-1 text-[50px] leading-none font-bold tabular-nums tracking-tight text-ink sm:text-[58px]">
                 {formatClock(clock)}
               </span>
               <span
@@ -207,11 +214,11 @@ export default function PomodoroView() {
             </div>
           </div>
         ) : (
-          <Ring progress={progress}>
+          <Ring progress={progress} size={ringSize} stroke={narrow ? 12 : 14}>
             <span className="text-[11px] font-semibold tracking-[0.2em] text-muted uppercase">
               {modeLabel(timer.mode)}
             </span>
-            <span className="mt-1 text-[58px] leading-none font-bold tabular-nums tracking-tight text-ink">
+            <span className="mt-1 text-[50px] leading-none font-bold tabular-nums tracking-tight text-ink sm:text-[58px]">
               {formatClock(clock)}
             </span>
             <span

@@ -31,7 +31,7 @@ export function Sidebar({ view, onChange }: Props) {
   };
 
   return (
-    <aside className="flex w-[212px] shrink-0 flex-col gap-1 border-r border-line px-3 py-4">
+    <aside className="hidden w-[212px] shrink-0 flex-col gap-1 border-r border-line px-3 py-4 md:flex">
       <div className="mb-4 flex items-center gap-2.5 px-2">
         <div className="fd-primary grid h-9 w-9 place-items-center rounded-xl shadow-lg shadow-brand/25">
           <Timer size={18} />
@@ -83,5 +83,31 @@ export function Sidebar({ view, onChange }: Props) {
         </p>
       </div>
     </aside>
+  );
+}
+
+/** Phone navigation: the same five destinations in a thumb-reachable bar. */
+export function MobileNav({ view, onChange }: Props) {
+  return (
+    <nav className="flex shrink-0 items-stretch border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      {NAV.map(({ value, label, Icon }) => {
+        const active = view === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            aria-current={active ? "page" : undefined}
+            onClick={() => onChange(value)}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
+              active ? "text-brand" : "text-muted",
+            )}
+          >
+            <Icon size={19} className={active ? "text-brand" : "text-muted"} />
+            {label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }

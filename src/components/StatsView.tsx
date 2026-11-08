@@ -30,6 +30,7 @@ import { humanizeMinutes } from "../lib/timer";
 import { goalProgress } from "../lib/goals";
 import { taskFocusRanking, tagFocusTotals, untaggedMinutes } from "../lib/focusBreakdown";
 import { exportStatsImage, type ExportRange } from "../lib/shareCard";
+import { isMobileOS } from "../lib/env";
 import { isTauri } from "../lib/env";
 import { Card, EmptyState, Segmented } from "./ui";
 import { cn } from "../lib/cn";
@@ -229,7 +230,10 @@ export default function StatsView() {
             type="button"
             onClick={() => void handleExport()}
             disabled={exporting}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              "flex items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid disabled:cursor-not-allowed disabled:opacity-50",
+              isMobileOS() && "hidden",
+            )}
           >
             <ImageDown size={14} />
             {exporting ? "生成中…" : "导出图片"}

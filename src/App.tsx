@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelTop, PanelTopClose } from "lucide-react";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar, MobileNav } from "./components/Sidebar";
 import { ThemeToggle } from "./components/ThemeToggle";
 import PomodoroView from "./components/PomodoroView";
 import TodoView from "./components/TodoView";
@@ -9,7 +9,7 @@ import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
 import { flushPersist, useAppStore } from "./store/useAppStore";
 import { syncCountdownWidgets } from "./lib/widget";
-import { isTauri } from "./lib/env";
+import { isDesktopRuntime } from "./lib/env";
 import type { View } from "./types";
 
 const META: Record<View, { title: string; subtitle: string }> = {
@@ -47,7 +47,7 @@ export default function App() {
   const theme = useAppStore((s) => s.settings.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const contentRef = useRef<HTMLDivElement>(null);
-  const tauri = isTauri();
+  const desktop = isDesktopRuntime();
 
   // One desktop window per pinned countdown; Rust opens/closes the difference.
   const pinnedIds = useAppStore((s) =>
@@ -58,14 +58,14 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!tauri) return;
+    if (!desktop) return;
     queueCountdownWidgetSync(pinnedIds ? pinnedIds.split("|") : []);
-  }, [pinnedIds, tauri]);
+  }, [pinnedIds, desktop]);
 
   useEffect(() => {
-    if (!tauri) return;
+    if (!desktop) return;
     syncWidgetVisible();
-  }, [tauri, syncWidgetVisible]);
+  }, [desktop, syncWidgetVisible]);
 
   // Switching views should start at the top rather than keep the previous
   // scroll offset, which could hide headings and toolbars.
@@ -76,45 +76,49 @@ export default function App() {
   const toggleWidget = () => setWidgetVisible(!widgetOn);
 
   return (
-    <div className="flex h-full">
-      <Sidebar view={view} onChange={setView} />
+    <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1">
+        <Sidebar view={view} onChange={setView} />
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line px-6">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold tracking-tight text-ink">
-              {META[view].title}
-            </h1>
-            <p className="truncate text-xs text-muted">{META[view].subtitle}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {tauri ? (
-              <button
-                type="button"
-                onClick={toggleWidget}
-                className={
-                  "flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold transition-colors " +
-                  (widgetOn
-                    ? "border-transparent bg-brand text-white"
-                    : "border-line bg-card text-muted hover:text-ink")
-                }
-              >
-                {widgetOn ? <PanelTopClose size={14} /> : <PanelTop size={14} />}
-                桌面小组件
-              </button>
-            ) : null}
-            <ThemeToggle value={theme} onChange={setTheme} />
-          </div>
-        </header>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 md:h-16 md:px-6">
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold tracking-tight text-ink">
+                {META[view].title}
+              </h1>
+              <p className="truncate text-xs text-muted">{META[view].subtitle}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {desktop ? (
+                <button
+                  type="button"
+                  onClick={toggleWidget}
+                  className={
+                    "flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold transition-colors " +
+                    (widgetOn
+                      ? "border-transparent bg-brand text-white"
+                      : "border-line bg-card text-muted hover:text-ink")
+                  }
+                >
+                  {widgetOn ? <PanelTopClose size={14} /> : <PanelTop size={14} />}
+                  <span className="hidden sm:inline">桌面小组件</span>
+                </button>
+              ) : null}
+              <ThemeToggle value={theme} onChange={setTheme} />
+            </div>
+          </header>
 
-        <div ref={contentRef} className="flex-1 overflow-y-auto px-6 py-6">
-          {view === "pomodoro" && <PomodoroView />}
-          {view === "todos" && <TodoView />}
-          {view === "countdowns" && <CountdownView />}
-          {view === "stats" && <StatsView />}
-          {view === "settings" && <SettingsView />}
-        </div>
-      </main>
+          <div ref={contentRef} className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+            {view === "pomodoro" && <PomodoroView />}
+            {view === "todos" && <TodoView />}
+            {view === "countdowns" && <CountdownView />}
+            {view === "stats" && <StatsView />}
+            {view === "settings" && <SettingsView />}
+          </div>
+        </main>
+      </div>
+
+      <MobileNav view={view} onChange={setView} />
     </div>
   );
 }

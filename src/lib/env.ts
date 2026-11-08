@@ -2,6 +2,16 @@
 export const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** True on Android / iOS, where desktop windows and the tray do not exist. */
+export const isMobileOS = (): boolean =>
+  typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/**
+ * True only inside a Tauri desktop build. Gates every window / tray / autostart
+ * entry point, so the same UI stays usable on phones and tablets.
+ */
+export const isDesktopRuntime = (): boolean => isTauri() && !isMobileOS();
+
 /** True when this webview is the detached desktop widget window. */
 export const isWidgetWindow = (): boolean =>
   typeof window !== "undefined" && window.location.hash.includes("/widget");

@@ -83,7 +83,7 @@ function TagChip({
           type="button"
           onClick={onRemove}
           title="删除标签"
-          className="text-muted opacity-0 transition-opacity group-hover/chip:opacity-100 hover:text-rose-500"
+          className="text-muted opacity-0 transition-opacity group-hover/chip:opacity-100 pointer-coarse:opacity-100 hover:text-rose-500"
         >
           <X size={compact ? 10 : 11} />
         </button>
@@ -341,7 +341,7 @@ export default function TodoView() {
                       "grid h-5 w-5 shrink-0 place-items-center rounded-md transition-colors",
                       totalSteps > 0
                         ? "text-muted hover:text-brand"
-                        : "text-muted opacity-0 group-hover:opacity-100 hover:text-brand",
+                        : "text-muted opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-brand",
                     )}
                   >
                     {totalSteps > 0 ? (
@@ -439,7 +439,7 @@ export default function TodoView() {
                         "grid h-8 w-8 place-items-center rounded-lg border transition-colors",
                         activeId === todo.id
                           ? "border-transparent bg-brand text-white"
-                          : "border-line text-muted opacity-0 group-hover:opacity-100 hover:text-brand",
+                          : "border-line text-muted opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-brand",
                       )}
                     >
                       <Target size={15} />
@@ -450,7 +450,7 @@ export default function TodoView() {
                     type="button"
                     onClick={() => removeTodo(todo.id)}
                     title="删除"
-                    className="grid h-8 w-8 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
+                    className="grid h-8 w-8 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 pointer-coarse:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -527,7 +527,7 @@ export default function TodoView() {
                             type="button"
                             onClick={() => removeStep(todo.id, step.id)}
                             title="删除子步骤"
-                            className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 hover:text-rose-500"
+                            className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 pointer-coarse:opacity-100 hover:text-rose-500"
                           >
                             <X size={12} />
                           </button>

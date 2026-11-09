@@ -81,13 +81,15 @@ function Metric({
   hint?: string;
 }) {
   return (
-    <Card className="fd-pop p-5">
+    <Card className="fd-pop p-4 sm:p-5">
       <div className="flex items-center gap-2 text-[11px] font-medium tracking-wide text-muted">
         <span className="text-brand">{icon}</span>
         {label}
       </div>
-      <p className="mt-2 flex items-baseline gap-1">
-        <span className="text-3xl font-bold tabular-nums text-ink">{value}</span>
+      {/* 360px phones only leave ~96px inside a 2-up card, so the number scales
+          down and the unit may drop to its own line instead of overflowing. */}
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-1">
+        <span className="text-2xl font-bold tabular-nums text-ink sm:text-3xl">{value}</span>
         <span className="text-xs font-medium text-muted">{unit}</span>
       </p>
       {hint ? <p className="mt-1 text-[11px] text-muted">{hint}</p> : null}
@@ -325,7 +327,7 @@ export default function StatsView() {
           <p className="text-[11px] text-muted">单位：分钟</p>
         </div>
 
-        <div className={cn("flex items-end", dense ? "gap-1" : "gap-2 sm:gap-3")}>
+        <div className={cn("flex items-end", dense ? "gap-0.5 sm:gap-1" : "gap-2 sm:gap-3")}>
           {bars.map((bar, index) => {
             const ratio = barPeak > 0 ? bar.minutes / barPeak : 0;
             const isBest = barPeak > 0 && bar.minutes === barPeak;

@@ -38,6 +38,7 @@ export const defaultSettings: Settings = {
   notify: true,
   widgetAlwaysOnTop: true,
   widgetOpacity: 0.92,
+  countdownWidgetOpacity: 1,
   widgetSize: "medium",
   widgetSkin: "glass",
   widgetBackground: null,
@@ -360,7 +361,14 @@ export function sanitizeState(input: unknown): AppState {
       sound: asBool(settings.sound, defaultSettings.sound),
       notify: asBool(settings.notify, defaultSettings.notify),
       widgetAlwaysOnTop: asBool(settings.widgetAlwaysOnTop, defaultSettings.widgetAlwaysOnTop),
-      widgetOpacity: Math.min(1, Math.max(0.4, asNumber(settings.widgetOpacity, defaultSettings.widgetOpacity))),
+      widgetOpacity: Math.min(1, Math.max(0, asNumber(settings.widgetOpacity, defaultSettings.widgetOpacity))),
+      countdownWidgetOpacity: Math.min(
+        1,
+        Math.max(
+          0,
+          asNumber(settings.countdownWidgetOpacity, defaultSettings.countdownWidgetOpacity),
+        ),
+      ),
       widgetSize:
         settings.widgetSize === "small" ||
         settings.widgetSize === "medium" ||

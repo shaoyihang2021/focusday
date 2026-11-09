@@ -141,8 +141,10 @@ export interface Settings {
   sound: boolean;
   notify: boolean;
   widgetAlwaysOnTop: boolean;
-  /** Widget panel opacity, 0.4 – 1. */
+  /** Widget panel opacity, 0 – 1. */
   widgetOpacity: number;
+  /** Panel opacity of each pinned countdown widget, 0 – 1. */
+  countdownWidgetOpacity: number;
   widgetSize: WidgetSize;
   /** Widget visual style. */
   widgetSkin: WidgetSkin;

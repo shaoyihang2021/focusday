@@ -14,6 +14,7 @@ import { cn } from "../lib/cn";
  */
 export default function CountdownWidgetApp({ id }: { id: string }) {
   const item = useAppStore((s) => s.countdowns.find((c) => c.id === id));
+  const opacity = useAppStore((s) => s.settings.countdownWidgetOpacity);
   const updateCountdown = useAppStore((s) => s.updateCountdown);
   const now = new Date(useNow(60_000));
 
@@ -59,7 +60,9 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
   if (!item) return null;
 
   const info = countdownInfo(item, now);
-  const { lead, value, unitCn, lines } = posterContent(item, info);
+  // The widget always counts exact days; the in-app poster keeps its coarse
+  // "N 个月" copy.
+  const { lead, value, unitCn, lines } = posterContent(item, info, { coarse: false });
   const dark = item.style === "wandering";
   const dragProps = { "data-tauri-drag-region": "true" } as const;
 
@@ -72,14 +75,21 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
 
   return (
     <div className="h-full w-full p-2">
-      <div
-        className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-2xl border px-3.5 py-2.5",
-          dark ? "border-white/10" : "fd-skin-glass",
-        )}
-        style={dark ? { backgroundColor: "#0b0b0c" } : undefined}
-      >
-        <div {...dragProps} className="flex h-6 shrink-0 items-center gap-1.5 select-none">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl px-3.5 py-2.5">
+        {/* Opacity only affects the surface, so the date and title stay crisp. */}
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-0 rounded-2xl",
+            dark ? "border border-white/10" : "fd-skin-glass",
+          )}
+          style={{
+            opacity,
+            ...(dark ? { backgroundColor: "#0b0b0c" } : null),
+          }}
+        />
+
+        <div {...dragProps} className="relative flex h-6 shrink-0 items-center gap-1.5 select-none">
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />
           <span className={cn("text-[10px] font-semibold tracking-wide", dark ? "text-white/55" : "text-muted")}>
             倒数日
@@ -99,12 +109,12 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
 
         <p
           {...dragProps}
-          className={cn("mt-1 truncate text-sm font-bold", dark ? "text-white" : "text-ink")}
+          className={cn("relative mt-1 truncate text-sm font-bold", dark ? "text-white" : "text-ink")}
         >
           距{item.title}
         </p>
 
-        <div className="mt-2 flex items-stretch gap-2">
+        <div className="relative mt-2 flex items-stretch gap-2">
           <span className="w-[3px] shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-end gap-x-2">
@@ -136,7 +146,7 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
           </div>
         </div>
 
-        <p className={cn("mt-auto truncate text-[10px]", dark ? "text-white/40" : "text-muted")}>
+        <p className={cn("relative mt-auto truncate text-[10px]", dark ? "text-white/40" : "text-muted")}>
           {formatDate(info.nextDate)}
           {item.repeat === "none" ? "" : ` · ${repeatText(item)}`}
         </p>

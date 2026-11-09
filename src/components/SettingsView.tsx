@@ -596,16 +596,32 @@ export default function SettingsView() {
           hint="锁定后无法拖动小组件，避免误触；位置会被记住并在下次启动时还原"
         />
         <Row
-          label="背景不透明度"
+          label="桌面小组件不透明度"
           hint={`只影响面板与背景图，文字始终清晰 · 当前 ${Math.round(settings.widgetOpacity * 100)}%`}
         >
           <input
             type="range"
-            min={40}
+            min={0}
             max={100}
-            step={2}
+            step={1}
             value={Math.round(settings.widgetOpacity * 100)}
             onChange={(e) => updateSettings({ widgetOpacity: Number(e.target.value) / 100 })}
+            className="w-28 sm:w-40"
+          />
+        </Row>
+        <Row
+          label="倒数日小组件不透明度"
+          hint={`单独控制钉在桌面的倒数日小部件 · 当前 ${Math.round(settings.countdownWidgetOpacity * 100)}%`}
+        >
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(settings.countdownWidgetOpacity * 100)}
+            onChange={(e) =>
+              updateSettings({ countdownWidgetOpacity: Number(e.target.value) / 100 })
+            }
             className="w-28 sm:w-40"
           />
         </Row>
@@ -661,7 +677,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.7</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.8</span>
         </Row>
       </Section>
 
@@ -674,7 +690,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.17.7 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.8 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog

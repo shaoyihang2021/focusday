@@ -22,21 +22,15 @@ const info = (days: number) => ({
   nextDate: "2027-03-17",
 });
 
-test("海报卡片在 30 天以上仍按月取整", () => {
+test("倒数日小组件与卡片一致，按完整天数显示", () => {
   const content = posterContent(item, info(128));
-  assert.equal(content.value, 4);
-  assert.equal(content.unitCn, "个月");
-});
-
-test("倒数日小组件按完整天数显示，不换算成月", () => {
-  const content = posterContent(item, info(128), { coarse: false });
   assert.equal(content.value, 128);
   assert.equal(content.unitCn, "天");
   assert.deepEqual(content.lines, ["128 DAYS TO GO"]);
 });
 
 test("已经过去的日子同样按完整天数显示", () => {
-  const content = posterContent(item, info(-45), { coarse: false });
+  const content = posterContent(item, info(-45));
   assert.equal(content.lead, "已过去");
   assert.equal(content.value, 45);
   assert.equal(content.unitCn, "天");

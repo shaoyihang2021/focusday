@@ -20,6 +20,7 @@ import {
   repeatText,
 } from "../lib/countdown";
 import { Card, EmptyState, Segmented } from "./ui";
+import DateWheel from "./DateWheel";
 import { isDesktopRuntime } from "../lib/env";
 import { cn } from "../lib/cn";
 import type {
@@ -123,7 +124,6 @@ function CalendarField({
   onCalendar,
   onSolarDate,
   onLunar,
-  idPrefix,
 }: {
   calendar: CountdownCalendar;
   solarDate: string;
@@ -131,8 +131,8 @@ function CalendarField({
   onCalendar: (next: CountdownCalendar) => void;
   onSolarDate: (next: string) => void;
   onLunar: (next: LunarDraft) => void;
-  idPrefix: string;
 }) {
+  const [wheelOpen, setWheelOpen] = useState(false);
   const solar = lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap);
   const leapAvailable = lunarLeapMonth(lunar.year) === lunar.month;
   const maxDay = lunarMonthDays(lunar.year, lunar.month, lunar.leap) || 30;
@@ -158,15 +158,16 @@ function CalendarField({
           className="h-10 shrink-0 items-center"
         />
         {calendar === "solar" ? (
-          <input
-            id={`${idPrefix}-solar`}
-            aria-label="目标日期"
-            type="date"
-            lang="zh-CN"
-            value={solarDate}
-            onChange={(e) => onSolarDate(e.target.value)}
-            className="h-10 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none focus:border-brand"
-          />
+          <button
+            type="button"
+            aria-label="选择目标日期"
+            onClick={() => setWheelOpen(true)}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none transition-colors focus:border-brand"
+          >
+            <CalendarDays size={14} className="text-muted" />
+            <span className="tabular-nums">{formatDate(solarDate)}</span>
+            <span className="text-xs text-muted">· {weekdayName(solarDate)}</span>
+          </button>
         ) : (
           <div className="flex flex-wrap items-center gap-1.5">
             <select
@@ -227,6 +228,15 @@ function CalendarField({
           </span>
         </div>
       ) : null}
+      <DateWheel
+        open={wheelOpen}
+        value={solarDate}
+        onCancel={() => setWheelOpen(false)}
+        onConfirm={(next) => {
+          onSolarDate(next);
+          setWheelOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -495,7 +505,6 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
               }}
               onSolarDate={(date) => patch({ date })}
               onLunar={(lunar) => patch({ lunar })}
-              idPrefix="fd-edit"
             />
 
             <div>
@@ -634,7 +643,6 @@ export default function CountdownView() {
             }}
             onSolarDate={setDate}
             onLunar={setLunar}
-            idPrefix="fd-add"
           />
           <div>
             <label className="mb-1.5 block text-xs font-medium text-muted">标记色</label>

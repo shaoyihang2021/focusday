@@ -60,9 +60,7 @@ export default function CountdownWidgetApp({ id }: { id: string }) {
   if (!item) return null;
 
   const info = countdownInfo(item, now);
-  // The widget always counts exact days; the in-app poster keeps its coarse
-  // "N 个月" copy.
-  const { lead, value, unitCn, lines } = posterContent(item, info, { coarse: false });
+  const { lead, value, unitCn, lines } = posterContent(item, info);
   const dark = item.style === "wandering";
   const dragProps = { "data-tauri-drag-region": "true" } as const;
 

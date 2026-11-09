@@ -33,6 +33,20 @@ export const dateKey = (d: Date = new Date()): string =>
 
 export const todayISO = (): string => dateKey();
 
+/** Number of days in a Gregorian month (`month` is 1-based). */
+export const daysInMonth = (year: number, month: number): number =>
+  new Date(year, month, 0).getDate();
+
+/** Moves `delta` months from `year`/`month`, rolling the year over. */
+export const shiftMonth = (
+  year: number,
+  month: number,
+  delta: number,
+): { year: number; month: number } => {
+  const d = new Date(year, month - 1 + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+};
+
 /** `周一` … `周日` for a `YYYY-MM-DD` string. */
 export const weekdayName = (dateStr: string): string => WEEKDAYS[parseDay(dateStr).getDay()];
 

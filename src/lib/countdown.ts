@@ -38,22 +38,14 @@ export interface PosterContent {
 }
 
 /**
- * Coarse copy shared by the poster card and the desktop widget: once the gap is
- * a month or more it counts in months (like the reference poster), otherwise
- * in days. The desktop widget passes `coarse: false` so it always shows the
- * exact number of days.
+ * Copy shared by the poster card and the desktop widget. Both always count the
+ * exact number of days so the number matches what the date actually means.
  */
-export function posterContent(
-  item: Countdown,
-  info: CountdownInfo,
-  { coarse = true }: { coarse?: boolean } = {},
-): PosterContent {
+export function posterContent(item: Countdown, info: CountdownInfo): PosterContent {
   const past = info.days < 0;
-  const abs = Math.abs(info.days);
-  const inMonths = coarse && abs >= 30;
-  const value = inMonths ? Math.max(1, Math.floor(abs / 30)) : abs;
-  const unitCn = inMonths ? "个月" : "天";
-  const unitEn = inMonths ? (value > 1 ? "MONTHS" : "MONTH") : value > 1 ? "DAYS" : "DAY";
+  const value = Math.abs(info.days);
+  const unitCn = "天";
+  const unitEn = value > 1 ? "DAYS" : "DAY";
 
   const base =
     info.days === 0

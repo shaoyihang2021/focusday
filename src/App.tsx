@@ -9,7 +9,8 @@ import StatsView from "./components/StatsView";
 import SettingsView from "./components/SettingsView";
 import { flushPersist, useAppStore } from "./store/useAppStore";
 import { syncCountdownWidgets } from "./lib/widget";
-import { isDesktopRuntime } from "./lib/env";
+import { isDesktopRuntime, isMobileOS } from "./lib/env";
+import { cn } from "./lib/cn";
 import type { View } from "./types";
 
 const META: Record<View, { title: string; subtitle: string }> = {
@@ -48,6 +49,7 @@ export default function App() {
   const setTheme = useAppStore((s) => s.setTheme);
   const contentRef = useRef<HTMLDivElement>(null);
   const desktop = isDesktopRuntime();
+  const mobile = isMobileOS();
 
   // One desktop window per pinned countdown; Rust opens/closes the difference.
   const pinnedIds = useAppStore((s) =>
@@ -76,7 +78,15 @@ export default function App() {
   const toggleWidget = () => setWidgetVisible(!widgetOn);
 
   return (
-    <div className="flex h-full flex-col">
+    <div
+      className={cn(
+        "flex h-full flex-col pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
+        // Android runs edge-to-edge, so reserve the status bar instead of
+        // letting the header sit under the notification shade. The 24px floor
+        // covers older WebViews that report an inset of 0.
+        mobile ? "pt-[max(env(safe-area-inset-top),24px)]" : "pt-[env(safe-area-inset-top)]",
+      )}
+    >
       <div className="flex min-h-0 flex-1">
         <Sidebar view={view} onChange={setView} />
 

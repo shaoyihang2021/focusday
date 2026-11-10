@@ -8,6 +8,8 @@ import {
   lunarMonthDays,
   lunarLeapMonth,
   lunarDateLabel,
+  lunarMonthOptions,
+  shiftLunarMonth,
 } from "../src/lib/lunar.ts";
 
 const iso = (date: Date | null): string | null =>
@@ -52,4 +54,20 @@ test("闰月事件在没有闰月的年份回落到普通月", () => {
 test("阴历文案包含闰月与月日名", () => {
   assert.equal(lunarDateLabel("2026-08-15"), "阴历八月十五");
   assert.equal(lunarDateLabel("2025-06-01", true), "阴历闰六月初一");
+});
+
+test("农历月份滚轮把闰月排在对应月份之后", () => {
+  const options = lunarMonthOptions(2025);
+  assert.equal(options.length, 13);
+  const june = options.findIndex((entry) => entry.month === 6 && !entry.leap);
+  assert.deepEqual(options[june + 1], { year: 2025, month: 6, leap: true });
+  assert.equal(lunarMonthOptions(2026).length, 12);
+});
+
+test("农历滚轮按闰月顺序进位、退位", () => {
+  assert.deepEqual(shiftLunarMonth(2025, 6, false, 1), { year: 2025, month: 6, leap: true });
+  assert.deepEqual(shiftLunarMonth(2025, 6, true, 1), { year: 2025, month: 7, leap: false });
+  assert.deepEqual(shiftLunarMonth(2025, 7, false, -1), { year: 2025, month: 6, leap: true });
+  assert.deepEqual(shiftLunarMonth(2025, 6, true, -1), { year: 2025, month: 6, leap: false });
+  assert.deepEqual(shiftLunarMonth(2025, 12, false, 1), { year: 2026, month: 1, leap: false });
 });

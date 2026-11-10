@@ -6,8 +6,6 @@ import { countdownInfo, dateKey, formatDate, parseDay, todayISO, weekdayName, ty
 import {
   LUNAR_DAYS,
   LUNAR_MONTHS,
-  lunarLeapMonth,
-  lunarMonthDays,
   lunarToSolar,
   solarToLunar,
 } from "../lib/lunar";
@@ -20,7 +18,7 @@ import {
   repeatText,
 } from "../lib/countdown";
 import { Card, EmptyState, Segmented } from "./ui";
-import DateWheel from "./DateWheel";
+import DateWheel, { LunarDateWheel } from "./DateWheel";
 import { isDesktopRuntime } from "../lib/env";
 import { cn } from "../lib/cn";
 import type {
@@ -133,19 +131,8 @@ function CalendarField({
   onLunar: (next: LunarDraft) => void;
 }) {
   const [wheelOpen, setWheelOpen] = useState(false);
+  const [lunarWheelOpen, setLunarWheelOpen] = useState(false);
   const solar = lunarToSolar(lunar.year, lunar.month, lunar.day, lunar.leap);
-  const leapAvailable = lunarLeapMonth(lunar.year) === lunar.month;
-  const maxDay = lunarMonthDays(lunar.year, lunar.month, lunar.leap) || 30;
-
-  const patch = (next: Partial<LunarDraft>) => {
-    const merged = { ...lunar, ...next };
-    if (lunarLeapMonth(merged.year) !== merged.month) merged.leap = false;
-    merged.day = Math.min(merged.day, lunarMonthDays(merged.year, merged.month, merged.leap) || 30);
-    onLunar(merged);
-  };
-
-  const selectClass =
-    "h-10 rounded-xl border border-line bg-solid px-2 text-sm text-ink outline-none focus:border-brand";
 
   return (
     <div className="min-w-[356px] max-sm:w-full max-sm:min-w-0">
@@ -169,58 +156,24 @@ function CalendarField({
             <span className="text-xs text-muted">· {weekdayName(solarDate)}</span>
           </button>
         ) : (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <select
-              aria-label="阴历年"
-              value={lunar.year}
-              onChange={(e) => patch({ year: Number(e.target.value) })}
-              className={cn(selectClass, "w-20")}
-            >
-              {Array.from({ length: 201 }, (_, index) => 1900 + index).map((year) => (
-                <option key={year} value={year}>
-                  {year}年
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="阴历月"
-              value={lunar.month}
-              onChange={(e) => patch({ month: Number(e.target.value) })}
-              className={cn(selectClass, "w-16")}
-            >
-              {LUNAR_MONTHS.map((name, index) => (
-                <option key={name} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="阴历日"
-              value={Math.min(lunar.day, maxDay)}
-              onChange={(e) => patch({ day: Number(e.target.value) })}
-              className={cn(selectClass, "w-16")}
-            >
-              {Array.from({ length: maxDay }, (_, index) => index + 1).map((day) => (
-                <option key={day} value={day}>
-                  {LUNAR_DAYS[day - 1]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            type="button"
+            aria-label="选择阴历日期"
+            onClick={() => setLunarWheelOpen(true)}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none transition-colors focus:border-brand"
+          >
+            <CalendarDays size={14} className="text-muted" />
+            <span className="tabular-nums">{lunar.year}年</span>
+            <span>
+              {lunar.leap ? "闰" : ""}
+              {LUNAR_MONTHS[lunar.month - 1]}
+              {LUNAR_DAYS[lunar.day - 1]}
+            </span>
+          </button>
         )}
       </div>
       {calendar === "lunar" ? (
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
-          {leapAvailable ? (
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={lunar.leap}
-                onChange={(e) => patch({ leap: e.target.checked })}
-              />
-              闰{lunar.month}月
-            </label>
-          ) : null}
           <span>
             {solar
               ? `对应阳历 ${formatDate(dateKey(solar))} · ${weekdayName(dateKey(solar))}`
@@ -235,6 +188,15 @@ function CalendarField({
         onConfirm={(next) => {
           onSolarDate(next);
           setWheelOpen(false);
+        }}
+      />
+      <LunarDateWheel
+        open={lunarWheelOpen}
+        value={lunar}
+        onCancel={() => setLunarWheelOpen(false)}
+        onConfirm={(next) => {
+          onLunar(next);
+          setLunarWheelOpen(false);
         }}
       />
     </div>

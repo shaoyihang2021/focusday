@@ -106,6 +106,46 @@ export function lunarMonthDays(year: number, month: number, leap = false): numbe
   return lunarLeapMonth(year) === month ? leapDays(year) : 0;
 }
 
+export interface LunarMonthRef {
+  year: number;
+  month: number;
+  leap: boolean;
+}
+
+/** Every selectable month of a lunar year, with its leap month in order. */
+export function lunarMonthOptions(year: number): LunarMonthRef[] {
+  const leapMonth = lunarLeapMonth(year);
+  const options: LunarMonthRef[] = [];
+  for (let month = 1; month <= 12; month += 1) {
+    options.push({ year, month, leap: false });
+    if (leapMonth === month) options.push({ year, month, leap: true });
+  }
+  return options;
+}
+
+/** Adjacent lunar month, following the leap month in calendar order. */
+export function shiftLunarMonth(
+  year: number,
+  month: number,
+  leap: boolean,
+  delta: 1 | -1,
+): LunarMonthRef {
+  let next: LunarMonthRef;
+  if (delta > 0) {
+    if (!leap && lunarLeapMonth(year) === month) next = { year, month, leap: true };
+    else if (month === 12) next = { year: year + 1, month: 1, leap: false };
+    else next = { year, month: month + 1, leap: false };
+  } else if (leap) {
+    next = { year, month, leap: false };
+  } else if (month === 1) {
+    next = { year: year - 1, month: 12, leap: lunarLeapMonth(year - 1) === 12 };
+  } else {
+    next = { year, month: month - 1, leap: lunarLeapMonth(year) === month - 1 };
+  }
+  // Years outside the table have no conversion data, so the wheel stops there.
+  return next.year < MIN_YEAR || next.year > MAX_YEAR ? { year, month, leap } : next;
+}
+
 const yearDays = (year: number): number => {
   let sum = 348;
   const info = infoFor(year);

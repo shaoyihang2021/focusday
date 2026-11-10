@@ -677,7 +677,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.9</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.10</span>
         </Row>
       </Section>
 
@@ -690,7 +690,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.17.9 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.10 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog

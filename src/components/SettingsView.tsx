@@ -73,11 +73,11 @@ const SIZES: { value: WidgetSize; label: string }[] = [
 ];
 
 const ACCENT_SWATCH: { value: Accent; label: string; color: string }[] = [
-  { value: "tomato", label: "番茄红", color: "#ff3b30" },
-  { value: "ocean", label: "海洋蓝", color: "#007aff" },
-  { value: "violet", label: "紫罗兰", color: "#5856d6" },
-  { value: "forest", label: "森林绿", color: "#34c759" },
-  { value: "amber", label: "琥珀黄", color: "#ff9500" },
+  { value: "tomato", label: "番茄红", color: "#f74a2c" },
+  { value: "ocean", label: "海洋蓝", color: "#2563eb" },
+  { value: "violet", label: "紫罗兰", color: "#7c3aed" },
+  { value: "forest", label: "森林绿", color: "#158f4a" },
+  { value: "amber", label: "琥珀黄", color: "#b7791f" },
 ];
 
 const SKINS: { value: WidgetSkin; label: string }[] = [
@@ -677,7 +677,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.18.0</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.11</span>
         </Row>
       </Section>
 
@@ -690,7 +690,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.18.0 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.11 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog

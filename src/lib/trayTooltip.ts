@@ -4,7 +4,7 @@ import { todayStat } from "./stats";
 import { setTrayProgress, updateTrayTooltip } from "./widget";
 
 let lastAccentKey = "";
-let lastAccentColor = "#007aff";
+let lastAccentColor = "#f74a2c";
 
 /** Reads the accent from the theme once per accent / light-dark switch. */
 const accentColor = (accent: string, dark: boolean): string => {
@@ -12,7 +12,7 @@ const accentColor = (accent: string, dark: boolean): string => {
   if (key === lastAccentKey) return lastAccentColor;
   lastAccentKey = key;
   lastAccentColor =
-    getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#007aff";
+    getComputedStyle(document.documentElement).getPropertyValue("--fd-brand").trim() || "#f74a2c";
   return lastAccentColor;
 };
 

@@ -91,7 +91,7 @@ export default function App() {
         <Sidebar view={view} onChange={setView} />
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-card/80 px-4 backdrop-blur-xl md:h-16 md:px-6">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 md:h-16 md:px-6">
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold tracking-tight text-ink">
                 {META[view].title}

@@ -47,12 +47,12 @@ function readTokens(): Tokens {
   const read = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
   return {
-    canvas: read("--fd-canvas", "#f2f2f7"),
-    card: read("--fd-card", "#ffffff"),
-    line: read("--fd-line", "#e5e5ea"),
-    ink: read("--fd-ink", "#1d1d1f"),
-    muted: read("--fd-muted", "#6e6e73"),
-    brand: read("--fd-brand", "#007aff"),
+    canvas: read("--fd-canvas", "#eef1f7"),
+    card: read("--fd-card", "rgba(255,255,255,0.74)"),
+    line: read("--fd-line", "rgba(15,23,42,0.09)"),
+    ink: read("--fd-ink", "#0f172a"),
+    muted: read("--fd-muted", "#64748b"),
+    brand: read("--fd-brand", "#f74a2c"),
   };
 }
 

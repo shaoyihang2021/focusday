@@ -15,7 +15,7 @@ interface Props {
 
 export function ThemeToggle({ value, onChange }: Props) {
   return (
-    <div className="flex items-center gap-0.5 rounded-full border border-line bg-card p-1 backdrop-blur">
+    <div className="flex items-center gap-0.5 rounded-full border border-line bg-solid p-1">
       {OPTIONS.map(({ value: v, label, Icon }) => (
         <button
           key={v}
@@ -25,7 +25,7 @@ export function ThemeToggle({ value, onChange }: Props) {
           className={cn(
             "grid h-7 w-7 place-items-center rounded-full transition-all duration-200",
             value === v
-              ? "bg-solid text-brand shadow-sm"
+              ? "bg-card text-brand shadow-sm"
               : "text-muted hover:text-ink",
           )}
         >

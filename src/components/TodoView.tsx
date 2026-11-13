@@ -230,7 +230,7 @@ export default function TodoView() {
               type="button"
               onClick={submit}
               disabled={!title.trim()}
-              className="fd-primary flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
+              className="fd-primary flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
             >
               <Plus size={16} /> 添加
             </button>

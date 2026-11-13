@@ -15,8 +15,8 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-line bg-card backdrop-blur-xl",
-        "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+        "rounded-2xl border border-line bg-card",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
         className,
       )}
       style={style}
@@ -41,7 +41,7 @@ export function IconButton({ className, active, title, onClick, children }: Icon
       title={title}
       onClick={onClick}
       className={cn(
-        "grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors",
+        "grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-colors",
         active
           ? "border-transparent bg-brand text-white"
           : "border-line bg-card text-muted hover:bg-solid hover:text-ink",
@@ -146,7 +146,7 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="fd-confirm-title"
-        className="fd-pop w-full max-w-sm rounded-2xl border border-line bg-solid p-5 shadow-2xl"
+        className="fd-pop w-full max-w-sm rounded-2xl border border-line bg-card p-5 shadow-2xl"
       >
         <p id="fd-confirm-title" className="text-sm font-semibold text-ink">
           {title}
@@ -158,7 +158,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
+            className="rounded-full border border-line bg-card px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-solid"
           >
             {cancelText}
           </button>
@@ -167,7 +167,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className={cn(
-              "rounded-xl px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90",
+              "rounded-full px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90",
               tone === "danger" ? "bg-rose-500" : "fd-primary",
             )}
           >
@@ -196,7 +196,7 @@ export function Segmented<T extends string>({
   return (
     <div
       className={cn(
-        "inline-flex flex-wrap gap-1 rounded-xl border border-line bg-card p-1",
+        "inline-flex flex-wrap gap-1 rounded-full border border-line bg-solid p-1",
         className,
       )}
     >
@@ -206,9 +206,9 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+            "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
             value === option.value
-              ? "bg-solid text-ink shadow-sm"
+              ? "bg-card text-ink shadow-sm"
               : "text-muted hover:text-ink",
           )}
         >
@@ -250,7 +250,7 @@ export function Stepper({ value, min, max, step = 1, suffix, onChange }: Stepper
       <button
         type="button"
         onClick={() => onChange(clamp(value - step))}
-        className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink"
+        className="grid h-7 w-7 place-items-center rounded-full border border-line bg-card text-muted transition-colors hover:text-ink"
       >
         −
       </button>
@@ -279,7 +279,7 @@ export function Stepper({ value, min, max, step = 1, suffix, onChange }: Stepper
       <button
         type="button"
         onClick={() => onChange(clamp(value + step))}
-        className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink"
+        className="grid h-7 w-7 place-items-center rounded-full border border-line bg-card text-muted transition-colors hover:text-ink"
       >
         +
       </button>

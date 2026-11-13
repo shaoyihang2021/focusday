@@ -260,7 +260,7 @@ export default function WidgetApp() {
           onClick={toggleRun}
           className={cn(
             "relative mx-3.5 mb-3 flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-white transition-all",
-            "fd-primary shadow-md shadow-brand/25 hover:brightness-105 active:scale-[0.98]",
+            "fd-primary shadow-sm hover:brightness-105 active:scale-[0.98]",
           )}
         >
           {timer.running ? <Pause size={14} /> : <Play size={14} />}

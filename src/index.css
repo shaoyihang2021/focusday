@@ -7,105 +7,123 @@
   --color-canvas: var(--fd-canvas);
   --color-card: var(--fd-card);
   --color-solid: var(--fd-solid);
+  --color-sidebar: var(--fd-sidebar);
   --color-line: var(--fd-line);
   --color-ink: var(--fd-ink);
   --color-muted: var(--fd-muted);
   --color-brand: var(--fd-brand);
   --color-brand-deep: var(--fd-brand-deep);
   --color-brand-soft: var(--fd-brand-soft);
-  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "DM Sans Variable", "DM Sans", "PingFang SC", "Microsoft YaHei",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Pinguo foundation scale: soft 1.2rem containers, calmer controls and the
+   whisper-light elevation steps from the design system. */
+@theme {
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.2rem;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.1), 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12);
 }
 
 :root {
-  --fd-canvas: #eef1f7;
-  --fd-card: rgba(255, 255, 255, 0.74);
-  --fd-solid: #ffffff;
-  --fd-line: rgba(15, 23, 42, 0.09);
-  --fd-ink: #0f172a;
-  --fd-muted: #64748b;
+  /* Light surfaces follow Silver Mist / white, with Apple's system grays. */
+  --fd-canvas: #f2f2f7;
+  --fd-card: #ffffff;
+  --fd-solid: #f7f7fa;
+  --fd-sidebar: #f2f2f7;
+  --fd-line: #e5e5ea;
+  --fd-ink: #1d1d1f;
+  --fd-muted: #6e6e73;
   color-scheme: light;
 
-  /* Default accent: tomato. Other accents override the five brand tokens. */
-  --fd-brand: #f74a2c;
-  --fd-brand-deep: #d8340f;
-  --fd-brand-soft: rgba(247, 74, 44, 0.12);
-  --fd-btn-from: #ff7a5c;
-  --fd-btn-to: #e23213;
+  /* Default accent: Pinguo Blue. Other accents override the brand tokens. */
+  --fd-brand: #007aff;
+  --fd-brand-deep: #0064d6;
+  --fd-brand-soft: rgba(0, 122, 255, 0.12);
 }
 
 .dark {
-  --fd-canvas: #0b0f17;
-  --fd-card: rgba(24, 30, 41, 0.72);
-  --fd-solid: #232c3a;
-  --fd-line: rgba(255, 255, 255, 0.09);
-  --fd-ink: #eaf0f8;
-  --fd-muted: #93a0b4;
+  --fd-canvas: #000000;
+  --fd-card: #1c1c1e;
+  --fd-solid: #2c2c2e;
+  --fd-sidebar: #1c1c1e;
+  --fd-line: #3a3a3c;
+  --fd-ink: #f5f5f7;
+  --fd-muted: #8e8e93;
   color-scheme: dark;
 
-  --fd-brand: #ff6a4d;
-  --fd-brand-deep: #ff9878;
-  --fd-brand-soft: rgba(255, 106, 77, 0.16);
-  --fd-btn-from: #ff7a5c;
-  --fd-btn-to: #e23213;
+  --fd-brand: #2e8dff;
+  --fd-brand-deep: #66abff;
+  --fd-brand-soft: rgba(46, 141, 255, 0.18);
 }
 
 /* ---------------------------------------------------------------------------
-   Accent schemes. Each accent only overrides the five brand tokens so the rest
-   of the theme (surfaces, text, borders) stays untouched. `.dark[data-accent]`
+   Accent schemes. Each accent only overrides the brand tokens so the rest of
+   the theme (surfaces, text, borders) stays untouched. `.dark[data-accent]`
    is intentionally declared after `:root[data-accent]` so it wins in dark mode.
+   Hues follow Apple's system palette.
    --------------------------------------------------------------------------- */
 
 :root[data-accent="ocean"] {
-  --fd-brand: #2563eb;
-  --fd-brand-deep: #1d4ed8;
-  --fd-brand-soft: rgba(37, 99, 235, 0.12);
-  --fd-btn-from: #4c8ef7;
-  --fd-btn-to: #1d5fd6;
+  --fd-brand: #007aff;
+  --fd-brand-deep: #0064d6;
+  --fd-brand-soft: rgba(0, 122, 255, 0.12);
 }
 .dark[data-accent="ocean"] {
-  --fd-brand: #6aa6ff;
-  --fd-brand-deep: #93c0ff;
-  --fd-brand-soft: rgba(106, 166, 255, 0.16);
+  --fd-brand: #2e8dff;
+  --fd-brand-deep: #66abff;
+  --fd-brand-soft: rgba(46, 141, 255, 0.18);
 }
 
 :root[data-accent="violet"] {
-  --fd-brand: #7c3aed;
-  --fd-brand-deep: #6d28d9;
-  --fd-brand-soft: rgba(124, 58, 237, 0.12);
-  --fd-btn-from: #9d76f8;
-  --fd-btn-to: #7239e8;
+  --fd-brand: #5856d6;
+  --fd-brand-deep: #4240b9;
+  --fd-brand-soft: rgba(88, 86, 214, 0.12);
 }
 .dark[data-accent="violet"] {
-  --fd-brand: #b18cff;
-  --fd-brand-deep: #c9aefd;
-  --fd-brand-soft: rgba(177, 140, 255, 0.18);
+  --fd-brand: #5e5ce6;
+  --fd-brand-deep: #a5a3ff;
+  --fd-brand-soft: rgba(94, 92, 230, 0.2);
 }
 
 :root[data-accent="forest"] {
-  --fd-brand: #158f4a;
-  --fd-brand-deep: #11713b;
-  --fd-brand-soft: rgba(21, 143, 74, 0.12);
-  --fd-btn-from: #29b463;
-  --fd-btn-to: #12813c;
+  --fd-brand: #34c759;
+  --fd-brand-deep: #248a3d;
+  --fd-brand-soft: rgba(52, 199, 89, 0.14);
 }
 .dark[data-accent="forest"] {
-  --fd-brand: #4ade80;
-  --fd-brand-deep: #86efac;
-  --fd-brand-soft: rgba(74, 222, 128, 0.16);
+  --fd-brand: #30d158;
+  --fd-brand-deep: #7bffa1;
+  --fd-brand-soft: rgba(48, 209, 88, 0.18);
 }
 
 :root[data-accent="amber"] {
-  --fd-brand: #b7791f;
-  --fd-brand-deep: #96610f;
-  --fd-brand-soft: rgba(183, 121, 31, 0.14);
-  --fd-btn-from: #cf7f14;
-  --fd-btn-to: #9a5c00;
+  --fd-brand: #ff9500;
+  --fd-brand-deep: #c26a00;
+  --fd-brand-soft: rgba(255, 149, 0, 0.14);
 }
 .dark[data-accent="amber"] {
-  --fd-brand: #f2b73f;
-  --fd-brand-deep: #f8d07a;
-  --fd-brand-soft: rgba(242, 183, 63, 0.18);
+  --fd-brand: #ff9f0a;
+  --fd-brand-deep: #ffc45c;
+  --fd-brand-soft: rgba(255, 159, 10, 0.18);
+}
+
+:root[data-accent="tomato"] {
+  --fd-brand: #ff3b30;
+  --fd-brand-deep: #d70015;
+  --fd-brand-soft: rgba(255, 59, 48, 0.12);
+}
+.dark[data-accent="tomato"] {
+  --fd-brand: #ff453a;
+  --fd-brand-deep: #ff8a84;
+  --fd-brand-soft: rgba(255, 69, 58, 0.18);
 }
 
 html,
@@ -120,11 +138,8 @@ body {
   color: var(--fd-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Flat premium neutral: gradients are reserved for hero moments. */
   background-color: var(--fd-canvas);
-  background-image:
-    radial-gradient(900px 520px at 8% -10%, var(--fd-brand-soft), transparent 60%),
-    radial-gradient(760px 460px at 106% 8%, rgba(56, 189, 248, 0.16), transparent 62%);
-  background-attachment: fixed;
 }
 
 /* The desktop widget window must be able to render a fully transparent surface. */
@@ -186,13 +201,19 @@ body.fd-widget {
 }
 
 /**
- * Gradient used by every primary action button. Kept as a theme-agnostic
- * gradient so white labels stay readable in both light and dark mode and the
- * whole button follows the selected accent.
+ * Primary action surface. The design system keeps actions decisive and quiet:
+ * a solid brand fill with white text, no gradient or colored glow, and a fully
+ * pill-shaped silhouette.
  */
 @utility fd-primary {
-  background-image: linear-gradient(to bottom right, var(--fd-btn-from), var(--fd-btn-to));
+  background-color: var(--fd-brand);
   color: #ffffff;
+}
+
+/* Unlayered so the capsule radius wins over rounded-* utilities on the same
+   element (Tailwind utilities live inside a cascade layer). */
+.fd-primary {
+  border-radius: 999px;
 }
 
 @utility no-drag {
@@ -218,7 +239,7 @@ textarea {
 }
 
 .fd-pop {
-  animation: fd-pop 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: fd-pop 0.25s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 @keyframes fd-fade {

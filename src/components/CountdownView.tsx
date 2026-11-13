@@ -28,7 +28,7 @@ import type {
   CountdownStyle,
 } from "../types";
 
-const COLORS = ["#f74a2c", "#f59e0b", "#22a699", "#3b82f6", "#8b5cf6", "#ec4899"];
+const COLORS = ["#ff3b30", "#ff9500", "#34c759", "#007aff", "#5856d6", "#ff2d55"];
 
 const REPEATS: { value: CountdownRepeat; label: string }[] = [
   { value: "none", label: "不重复" },
@@ -506,7 +506,7 @@ function EditDialog({ item, onClose }: { item: Countdown; onClose: () => void })
               type="button"
               onClick={save}
               disabled={!valid}
-              className="fd-primary rounded-xl px-4 py-2 text-xs font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
+              className="fd-primary rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
             >
               保存
             </button>
@@ -614,7 +614,7 @@ export default function CountdownView() {
             type="button"
             onClick={submit}
             disabled={!title.trim() || !lunarValid}
-            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-lg shadow-brand/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 lg:mt-[22px]"
+            className="fd-primary flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 lg:mt-[22px]"
           >
             <Plus size={16} /> 添加
           </button>

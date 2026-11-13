@@ -11,6 +11,7 @@ import { applyWidgetWindowSettings, registerCloseBehaviour, setAutoLaunch, setGl
 import { startTraySync } from "./lib/trayTooltip";
 import { syncNoise } from "./lib/noise";
 import { countdownWidgetId, isDesktopRuntime, isWidgetWindow } from "./lib/env";
+import "@fontsource-variable/dm-sans";
 import "./index.css";
 
 const widget = isWidgetWindow();

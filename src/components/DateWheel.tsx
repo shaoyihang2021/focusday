@@ -174,7 +174,7 @@ function WheelDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="fd-date-wheel-title"
-        className="fd-pop w-full max-w-xs rounded-2xl border border-line bg-solid p-4 shadow-2xl"
+        className="fd-pop w-full max-w-xs rounded-2xl border border-line bg-card p-4 shadow-2xl"
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <p id="fd-date-wheel-title" className="text-sm font-semibold text-ink">

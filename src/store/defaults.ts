@@ -56,7 +56,7 @@ export const defaultSettings: Settings = {
   autoLaunch: false,
   closeToTray: true,
   theme: "system",
-  accent: "tomato",
+  accent: "ocean",
 };
 
 export const ACCENTS: Accent[] = ["tomato", "ocean", "violet", "forest", "amber"];
@@ -66,21 +66,21 @@ export const NOISE_TYPES = ["off", "white", "pink", "brown", "rain", "cafe"] as 
 
 /** Palette offered when creating a tag, cycled by index. */
 export const TAG_COLORS = [
-  "#3b82f6",
-  "#8b5cf6",
-  "#10b981",
-  "#f59e0b",
-  "#ec4899",
-  "#14b8a6",
-  "#ef4444",
-  "#6366f1",
+  "#007aff",
+  "#5856d6",
+  "#34c759",
+  "#ff9500",
+  "#ff2d55",
+  "#30b0c7",
+  "#ff3b30",
+  "#5e5ce6",
 ];
 
 /** Tags available on a fresh install so the feature is immediately usable. */
 export const defaultTags: Tag[] = [
-  { id: "tag-work", name: "工作", color: "#3b82f6" },
-  { id: "tag-study", name: "学习", color: "#8b5cf6" },
-  { id: "tag-life", name: "生活", color: "#10b981" },
+  { id: "tag-work", name: "工作", color: "#007aff" },
+  { id: "tag-study", name: "学习", color: "#5856d6" },
+  { id: "tag-life", name: "生活", color: "#34c759" },
 ];
 
 /** Multipliers applied to the widget window's base size (324 × 216). */

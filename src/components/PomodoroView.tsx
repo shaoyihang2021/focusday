@@ -246,7 +246,7 @@ export default function PomodoroView() {
             onClick={toggleRun}
             className={cn(
               "flex h-11 min-w-[136px] items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold text-white transition-all",
-              "fd-primary shadow-lg shadow-brand/30 hover:brightness-105 active:scale-[0.98]",
+              "fd-primary shadow-sm hover:brightness-105 active:scale-[0.98]",
             )}
           >
             {timer.running ? <Pause size={18} /> : <Play size={18} />}

@@ -275,7 +275,15 @@ export const useAppStore = create<Store>((set, get) => ({
       timer: s.timer.activeTodoId === id ? { ...s.timer, activeTodoId: null } : s.timer,
     })),
 
-  clearDoneTodos: () => set((s) => ({ todos: s.todos.filter((t) => !t.done) })),
+  clearDoneTodos: () =>
+    set((s) => {
+      const remaining = s.todos.filter((t) => !t.done);
+      const activeAlive = remaining.some((t) => t.id === s.timer.activeTodoId);
+      return {
+        todos: remaining,
+        timer: activeAlive ? s.timer : { ...s.timer, activeTodoId: null },
+      };
+    }),
 
   setActiveTodo: (id) => set((s) => ({ timer: { ...s.timer, activeTodoId: id } })),
 

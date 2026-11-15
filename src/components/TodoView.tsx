@@ -95,7 +95,8 @@ function TagChip({
 export default function TodoView() {
   const todos = useAppStore((s) => s.todos);
   const tags = useAppStore((s) => s.tags);
-  const activeId = useAppStore((s) => s.timer.activeTodoId);
+  const timer = useAppStore((s) => s.timer);
+  const activeId = timer.activeTodoId;
   const addTodo = useAppStore((s) => s.addTodo);
   const toggleTodo = useAppStore((s) => s.toggleTodo);
   const removeTodo = useAppStore((s) => s.removeTodo);
@@ -121,6 +122,8 @@ export default function TodoView() {
   const [dragStep, setDragStep] = useState<{ todoId: string; index: number } | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
+  const [clearDoneOpen, setClearDoneOpen] = useState(false);
 
   const toggleExpanded = (id: string) =>
     setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -274,7 +277,8 @@ export default function TodoView() {
           {doneCount > 0 ? (
             <button
               type="button"
-              onClick={clearDoneTodos}
+              onClick={() => setClearDoneOpen(true)}
+              aria-label={`清除 ${doneCount} 项已完成任务`}
               className="ml-3 text-muted underline decoration-dotted underline-offset-2 hover:text-brand"
             >
               清除已完成
@@ -337,6 +341,14 @@ export default function TodoView() {
                     type="button"
                     onClick={() => toggleExpanded(todo.id)}
                     title={totalSteps > 0 ? (isOpen ? "收起子步骤" : "展开子步骤") : "拆分任务为子步骤"}
+                    aria-label={
+                      totalSteps > 0
+                        ? isOpen
+                          ? `收起「${todo.title}」的子步骤`
+                          : `展开「${todo.title}」的子步骤`
+                        : `为「${todo.title}」添加子步骤`
+                    }
+                    aria-expanded={totalSteps > 0 ? isOpen : undefined}
                     className={cn(
                       "grid h-5 w-5 shrink-0 place-items-center rounded-md transition-colors",
                       totalSteps > 0
@@ -358,6 +370,8 @@ export default function TodoView() {
                   <button
                     type="button"
                     onClick={() => toggleTodo(todo.id)}
+                    aria-label={todo.done ? `将「${todo.title}」标记为未完成` : `完成「${todo.title}」`}
+                    aria-pressed={todo.done}
                     className={cn(
                       "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all",
                       todo.done
@@ -411,7 +425,7 @@ export default function TodoView() {
                           每日
                         </span>
                       ) : null}
-                      {activeId === todo.id && !todo.done ? (
+                      {timer.running && timer.mode === "work" && activeId === todo.id && !todo.done ? (
                         <span className="text-[11px] font-medium text-brand">专注中</span>
                       ) : null}
                       {todo.tags.map((id) => {
@@ -434,9 +448,15 @@ export default function TodoView() {
                     <button
                       type="button"
                       onClick={() => setActiveTodo(activeId === todo.id ? null : todo.id)}
-                      title="设为当前专注任务"
+                      title={activeId === todo.id ? "取消当前专注任务" : "设为当前专注任务"}
+                      aria-label={
+                        activeId === todo.id
+                          ? `取消「${todo.title}」的当前专注任务`
+                          : `将「${todo.title}」设为当前专注任务`
+                      }
+                      aria-pressed={activeId === todo.id}
                       className={cn(
-                        "grid h-8 w-8 place-items-center rounded-lg border transition-colors",
+                        "grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-colors",
                         activeId === todo.id
                           ? "border-transparent bg-brand text-white"
                           : "border-line text-muted opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-brand",
@@ -448,9 +468,10 @@ export default function TodoView() {
 
                   <button
                     type="button"
-                    onClick={() => removeTodo(todo.id)}
+                    onClick={() => setTodoToDelete(todo)}
                     title="删除"
-                    className="grid h-8 w-8 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 pointer-coarse:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
+                    aria-label={`删除任务「${todo.title}」`}
+                    className="ml-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted opacity-0 transition-colors group-hover:opacity-100 pointer-coarse:opacity-100 hover:bg-rose-500/10 hover:text-rose-500"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -506,6 +527,8 @@ export default function TodoView() {
                           <button
                             type="button"
                             onClick={() => toggleStep(todo.id, step.id)}
+                            aria-label={step.done ? `取消完成子步骤「${step.title}」` : `完成子步骤「${step.title}」`}
+                            aria-pressed={step.done}
                             className={cn(
                               "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all",
                               step.done
@@ -527,6 +550,7 @@ export default function TodoView() {
                             type="button"
                             onClick={() => removeStep(todo.id, step.id)}
                             title="删除子步骤"
+                            aria-label={`删除子步骤「${step.title}」`}
                             className="grid h-5 w-5 place-items-center rounded text-muted opacity-0 transition-opacity group-hover/step:opacity-100 pointer-coarse:opacity-100 hover:text-rose-500"
                           >
                             <X size={12} />
@@ -571,6 +595,30 @@ export default function TodoView() {
         tone="danger"
         onConfirm={removeConfirmedTag}
         onCancel={() => setTagToDelete(null)}
+      />
+      <ConfirmDialog
+        open={todoToDelete !== null}
+        title={`删除任务「${todoToDelete?.title ?? ""}」？`}
+        description="任务及其子步骤会被删除，已经记录的专注分钟数仍保留在统计里。"
+        confirmText="删除任务"
+        tone="danger"
+        onConfirm={() => {
+          if (todoToDelete) removeTodo(todoToDelete.id);
+          setTodoToDelete(null);
+        }}
+        onCancel={() => setTodoToDelete(null)}
+      />
+      <ConfirmDialog
+        open={clearDoneOpen}
+        title={`清除 ${doneCount} 项已完成任务？`}
+        description="已完成的任务会被删除，已经记录的专注分钟数仍保留在统计里。"
+        confirmText="清除"
+        tone="danger"
+        onConfirm={() => {
+          clearDoneTodos();
+          setClearDoneOpen(false);
+        }}
+        onCancel={() => setClearDoneOpen(false)}
       />
     </div>
   );

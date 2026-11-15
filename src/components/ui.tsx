@@ -260,7 +260,18 @@ export function Stepper({ value, min, max, step = 1, suffix, onChange }: Stepper
           inputMode="numeric"
           aria-label={suffix ? `输入${suffix}` : "输入数值"}
           value={draft}
-          onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ""))}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^\d]/g, "");
+            setDraft(raw);
+            // Apply valid values while typing so the timer ring and preset
+            // chips follow immediately. Out-of-range input waits for blur so
+            // clamping never fights the typist mid-number.
+            if (raw === "") return;
+            const parsed = Number(raw);
+            if (Number.isFinite(parsed) && parsed >= min && parsed <= max && parsed !== value) {
+              onChange(parsed);
+            }
+          }}
           onFocus={(e) => e.currentTarget.select()}
           onBlur={commit}
           onKeyDown={(e) => {

@@ -17,7 +17,7 @@ import {
   posterContent,
   repeatText,
 } from "../lib/countdown";
-import { Card, EmptyState, Segmented } from "./ui";
+import { Card, ConfirmDialog, EmptyState, Segmented } from "./ui";
 import DateWheel, { LunarDateWheel } from "./DateWheel";
 import { isDesktopRuntime } from "../lib/env";
 import { cn } from "../lib/cn";
@@ -147,7 +147,7 @@ function CalendarField({
         {calendar === "solar" ? (
           <button
             type="button"
-            aria-label="选择目标日期"
+            aria-label={`选择目标日期，当前为 ${formatDate(solarDate)}`}
             onClick={() => setWheelOpen(true)}
             className="flex h-10 items-center gap-1.5 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none transition-colors focus:border-brand"
           >
@@ -158,7 +158,7 @@ function CalendarField({
         ) : (
           <button
             type="button"
-            aria-label="选择阴历日期"
+            aria-label={`选择阴历日期，当前为 ${lunar.year}年${lunar.leap ? "闰" : ""}${LUNAR_MONTHS[lunar.month - 1]}${LUNAR_DAYS[lunar.day - 1]}`}
             onClick={() => setLunarWheelOpen(true)}
             className="flex h-10 items-center gap-1.5 rounded-xl border border-line bg-solid px-3 text-sm text-ink outline-none transition-colors focus:border-brand"
           >
@@ -243,6 +243,7 @@ interface CardActionsProps {
 function CardActions({ item, onEdit }: CardActionsProps) {
   const togglePinned = useAppStore((s) => s.togglePinned);
   const removeCountdown = useAppStore((s) => s.removeCountdown);
+  const [confirming, setConfirming] = useState(false);
   const poster = item.style === "wandering";
   // Pinning opens a desktop window, which Android has no equivalent for.
   const desktop = isDesktopRuntime();
@@ -262,22 +263,42 @@ function CardActions({ item, onEdit }: CardActionsProps) {
         type="button"
         onClick={() => togglePinned(item.id)}
         title={item.pinned ? "取消钉在桌面" : "钉在桌面"}
+        aria-label={item.pinned ? `取消钉住「${item.title}」` : `将「${item.title}」钉到桌面`}
         aria-pressed={item.pinned}
         className={cn(base, item.pinned ? pinnedOn : subtle, !desktop && "hidden")}
       >
         <Pin size={14} />
       </button>
-      <button type="button" onClick={onEdit} title="编辑" className={cn(base, subtle)}>
+      <button
+        type="button"
+        onClick={onEdit}
+        title="编辑"
+        aria-label={`编辑倒数日「${item.title}」`}
+        className={cn(base, subtle)}
+      >
         <Pencil size={14} />
       </button>
       <button
         type="button"
-        onClick={() => removeCountdown(item.id)}
+        onClick={() => setConfirming(true)}
         title="删除"
+        aria-label={`删除倒数日「${item.title}」`}
         className={cn(base, danger)}
       >
         <Trash2 size={14} />
       </button>
+      <ConfirmDialog
+        open={confirming}
+        title={`删除倒数日「${item.title}」？`}
+        description="这条倒数日及其桌面小部件会被删除，此操作不可撤销。"
+        confirmText="删除"
+        tone="danger"
+        onConfirm={() => {
+          removeCountdown(item.id);
+          setConfirming(false);
+        }}
+        onCancel={() => setConfirming(false)}
+      />
     </div>
   );
 }

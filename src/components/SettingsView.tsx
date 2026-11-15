@@ -63,7 +63,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 const THEMES: { value: ThemeMode; label: string }[] = [
   { value: "light", label: "浅色" },
   { value: "dark", label: "深色" },
-  { value: "system", label: "系统" },
+  { value: "system", label: "跟随系统" },
 ];
 
 const SIZES: { value: WidgetSize; label: string }[] = [
@@ -653,7 +653,7 @@ export default function SettingsView() {
             </Row>
           </>
         )}
-        <Row label="重置全部数据" hint="清空待办、倒数日与统计数据，操作不可撤销">
+        <Row label="重置全部数据" hint="清空待办、倒数日、设置与专注统计，操作不可撤销">
           <button
             type="button"
             onClick={() => setPendingConfirm("reset")}
@@ -677,7 +677,7 @@ export default function SettingsView() {
           </button>
         </Row>
         <Row label="版本" hint="安装包会发布在 Releases 页面">
-          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.11</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">v0.17.12</span>
         </Row>
       </Section>
 
@@ -690,7 +690,7 @@ export default function SettingsView() {
       ) : null}
 
       <p className="text-center text-[11px] text-muted">
-        FocusDay v0.17.11 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
+        FocusDay v0.17.12 · 番茄工作法 + 待办清单 + 倒数日 · {formatDate(todayISO())}
       </p>
 
       <ConfirmDialog
